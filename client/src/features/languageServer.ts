@@ -128,4 +128,23 @@ export class LanguageServerManager {
   public isRunning(): boolean {
     return this.client !== null && this.client.isRunning();
   }
+
+  /**
+   * Forward a `nmtran/parsedModel` request to the running server and
+   * return the structured snapshot. Returns null if the server isn't up
+   * yet or if the document isn't known to the server. The request method
+   * name and response shape are part of the published extension API
+   * (`exports.getParsedModel`); see `parsedModelApi.ts`.
+   */
+  public async sendParsedModelRequest(uri: string): Promise<unknown | null> {
+    if (!this.client || !this.client.isRunning()) return null;
+    try {
+      return await this.client.sendRequest('nmtran/parsedModel', {
+        textDocument: { uri },
+      });
+    } catch (error) {
+      this.logger.error('parsedModel request failed:', error);
+      return null;
+    }
+  }
 }

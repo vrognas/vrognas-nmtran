@@ -15,6 +15,7 @@ import { Logger } from './logger';
 import { NMTRANFoldingProvider } from './features/foldingProvider';
 import { LanguageServerManager } from './features/languageServer';
 import { VerbatimDecorator } from './features/verbatimDecorator';
+import { NmtranApi, NmtranParsedModel } from './parsedModelApi';
 
 // Service instances
 let languageServerManager: LanguageServerManager;
@@ -22,25 +23,32 @@ let languageServerManager: LanguageServerManager;
 /**
  * Called when the extension is activated (when NMTRAN files are opened)
  */
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
+export async function activate(context: vscode.ExtensionContext): Promise<NmtranApi> {
   const logger = Logger.getInstance();
-  
+
   try {
     logger.activation('Starting activation...');
     logger.debug('Extension path:', context.extensionPath);
     logger.debug('Extension version:', getExtensionVersion(context));
-    
+
     // Register language features
     await registerLanguageFeatures(context);
-    
+
     // Start language server
     await startLanguageServer(context);
-    
+
     // Setup configuration change handlers
     setupConfigurationHandlers(context);
-    
+
     logger.completion('Activation completed successfully');
-    
+
+    // Return the public API for companion extensions to consume.
+    return {
+      getParsedModel: async (uri: vscode.Uri): Promise<NmtranParsedModel | null> => {
+        const result = await languageServerManager.sendParsedModelRequest(uri.toString());
+        return (result as NmtranParsedModel | null) ?? null;
+      },
+    };
   } catch (error) {
     logger.error('Extension activation failed:', error);
     throw error;

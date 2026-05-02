@@ -29,6 +29,29 @@ export interface OmegaSigmaDecl {
   fix: boolean;
 }
 
+/**
+ * A top-level assignment captured from $PRED / $PK / $ERROR / $DES / $MIX
+ * blocks. `name = rhs` lines only — IF/THEN/ELSE bodies, indexed LHS like
+ * `A(1) = …`, and continuation lines are deferred.
+ */
+export interface Equation {
+  /** LHS identifier, e.g. `Y`, `CL`, `DX`. */
+  name: string;
+  /** Right-hand-side text, comments stripped. */
+  rhs: string;
+  /** Owning abbreviated-code block, e.g. `$PRED`. */
+  block: string;
+  /** 0-based line number in the source. */
+  line: number;
+  /**
+   * Pre-computed evaluation under the typical-individual convention:
+   * THETA(n)→init, ETA(n)→0, EPS(n)→0, OMEGA/SIGMA→variance, prior bindings
+   * resolved in source order. Undefined when the RHS uses unsupported
+   * syntax (function calls, .GT./.LT./… comparisons, etc.).
+   */
+  value: number | undefined;
+}
+
 export interface ParsedModel {
   /** First-token argument of $DATA, or null when no $DATA record is present. */
   dataFile: string | null;
@@ -37,6 +60,7 @@ export interface ParsedModel {
   thetas: ThetaDecl[];
   omegas: OmegaSigmaDecl[];
   sigmas: OmegaSigmaDecl[];
+  equations: Equation[];
 }
 
 /** LSP request method name; consumers should use this constant. */

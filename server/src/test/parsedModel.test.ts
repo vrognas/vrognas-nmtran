@@ -68,4 +68,60 @@ describe('buildParsedModel', () => {
     expect(m.inputColumns).toEqual([]);
     expect(m.thetas).toHaveLength(1);
   });
+
+  test('extracts top-level assignments inside abbreviated-code blocks ($PRED / $PK / $ERROR)', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM eqs',
+          '$DATA d',
+          '$INPUT ID DV',
+          '$PRED',
+          '  Y = THETA(1) + ETA(1) + EPS(1)  ; main',
+          '$PK',
+          '  CL = THETA(2)',
+          '  DX = 1',
+          '$ERROR',
+          '  IPRED = F',
+          '$THETA 1 1.5',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    // ETA(n) and EPS(n) are random with mean 0 — the typical-individual
+    // prediction substitutes 0 for both. So Y = THETA(1) + 0 + 0 = 1.
+    expect(m.equations).toEqual([
+      { name: 'Y', rhs: 'THETA(1) + ETA(1) + EPS(1)', block: '$PRED', line: 4, value: 1 },
+      { name: 'CL', rhs: 'THETA(2)', block: '$PK', line: 6, value: 1.5 },
+      { name: 'DX', rhs: '1', block: '$PK', line: 7, value: 1 },
+      { name: 'IPRED', rhs: 'F', block: '$ERROR', line: 9, value: undefined },
+    ]);
+  });
+
+  test('evaluator resolves cross-equation references and returns undefined for unsupported syntax', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM chained',
+          '$DATA d',
+          '$PK',
+          '  CL = THETA(1) * 2',
+          '  V = CL + 1',
+          '  K = LOG(CL)',
+          '  COND = (CL.GT.0)',
+          '$THETA 3',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    const byName = Object.fromEntries(m.equations.map((e) => [e.name, e]));
+    expect(byName.CL.value).toBe(6);
+    expect(byName.V.value).toBe(7);
+    expect(byName.K.value).toBeUndefined(); // LOG(...) not implemented
+    expect(byName.COND.value).toBeUndefined(); // .GT. not implemented
+  });
 });

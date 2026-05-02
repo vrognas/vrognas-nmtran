@@ -13,18 +13,40 @@ import {
   ParsedModel,
   ThetaDecl,
   OmegaSigmaDecl,
+  Equation,
 } from '../parsedModel';
+import { evaluate, EvalContext } from './nmtranExpression';
+
+/** Abbreviated-code blocks where top-level `name = rhs` lines are extracted. */
+const EQUATION_BLOCKS = new Set([
+  '$PRED',
+  '$PK',
+  '$ERROR',
+  '$DES',
+  '$MIX',
+  '$AES',
+  '$AESINITIAL',
+  '$INFN',
+  '$CONTR',
+]);
 
 export function buildParsedModel(doc: TextDocument): ParsedModel {
   const lines = doc.getText().split('\n');
   const locations = ParameterScanner.scanDocument(doc);
 
+  const thetas = locations.filter((l) => l.type === 'THETA').map((l) => buildTheta(l, lines));
+  const omegas = locations.filter((l) => l.type === 'ETA').map((l) => buildOmegaSigma(l, lines));
+  const sigmas = locations.filter((l) => l.type === 'EPS').map((l) => buildOmegaSigma(l, lines));
+
+  const equations = extractEquations(lines, { thetas, omegas, sigmas });
+
   return {
     dataFile: extractDataFile(lines),
     inputColumns: extractInputColumns(lines),
-    thetas: locations.filter((l) => l.type === 'THETA').map((l) => buildTheta(l, lines)),
-    omegas: locations.filter((l) => l.type === 'ETA').map((l) => buildOmegaSigma(l, lines)),
-    sigmas: locations.filter((l) => l.type === 'EPS').map((l) => buildOmegaSigma(l, lines)),
+    thetas,
+    omegas,
+    sigmas,
+    equations,
   };
 }
 
@@ -131,4 +153,52 @@ function parseFloatOrUndef(s: string): number | undefined {
   if (!t) return undefined;
   const n = parseFloat(t);
   return Number.isNaN(n) ? undefined : n;
+}
+
+/**
+ * Walk lines in source order, track which abbreviated-code block we're in,
+ * and capture `name = rhs` assignments. Each captured equation gets
+ * pre-evaluated against prior bindings so consumers can render values
+ * without re-implementing the evaluator.
+ */
+function extractEquations(
+  lines: string[],
+  decls: { thetas: ThetaDecl[]; omegas: OmegaSigmaDecl[]; sigmas: OmegaSigmaDecl[] },
+): Equation[] {
+  const ctx: EvalContext = {
+    thetas: new Map(decls.thetas.map((t) => [t.index, t.init])),
+    omegas: new Map(decls.omegas.map((o) => [o.index, o.value])),
+    sigmas: new Map(decls.sigmas.map((s) => [s.index, s.value])),
+    bindings: new Map(),
+  };
+
+  const equations: Equation[] = [];
+  let currentBlock: string | null = null;
+
+  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+    const raw = lines[lineNum] ?? '';
+    const code = stripComment(raw).trimEnd();
+    const trimmed = code.trim();
+    if (!trimmed) continue;
+
+    const recordMatch = /^\$(\w+)/.exec(trimmed);
+    if (recordMatch && recordMatch[1]) {
+      const blockName = '$' + recordMatch[1].toUpperCase();
+      currentBlock = EQUATION_BLOCKS.has(blockName) ? blockName : null;
+      continue;
+    }
+
+    if (!currentBlock) continue;
+
+    // Bare `name = rhs` — single identifier LHS, no indexing, no compound assignment.
+    const assign = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(code);
+    if (!assign || !assign[1] || assign[2] === undefined) continue;
+    const name = assign[1];
+    const rhs = assign[2];
+    const value = evaluate(rhs, ctx);
+    equations.push({ name, rhs, block: currentBlock, line: lineNum, value });
+    if (value !== undefined) ctx.bindings.set(name.toUpperCase(), value);
+  }
+
+  return equations;
 }

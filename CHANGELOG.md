@@ -7,6 +7,20 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-05-03
+
+### Added
+
+* **`equations` field on `ParsedModel`**: top-level `name = rhs` assignments inside
+  `$PRED`/`$PK`/`$ERROR`/`$DES`/`$MIX` blocks are extracted and pre-evaluated under
+  the typical-individual convention (THETA(n)→init, ETA(n)→0, EPS(n)→0,
+  cross-equation references resolved in source order). Equations whose RHS uses
+  unsupported syntax (function calls, `.GT.`/`.LT.` comparisons, IF/THEN, indexed
+  LHS) carry `value: undefined` instead of failing.
+* **Public extension API**: `activate()` now returns `{ getParsedModel(uri) }` so
+  companion extensions can consume the parsed snapshot via
+  `vscode.extensions.getExtension('vrognas.nmtran')?.activate()`.
+
 ## [0.4.10] - 2026-05-03
 
 ### Added
