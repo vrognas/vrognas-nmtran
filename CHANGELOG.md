@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-05-03
+
+### Added
+
+* **`nmtran/parsedModel` LSP request**: returns a structured snapshot of the active document's
+  declared parameters — `{thetas, omegas, sigmas, dataFile, inputColumns}` with values, bounds,
+  and FIX flags. Lets companion extensions (e.g. positron-nonmem) render context-aware views
+  without re-implementing NMTRAN parsing. Diagonal-only for OMEGA/SIGMA in this cut; BLOCK
+  off-diagonals and PRED/PK/ERROR equation lifting follow.
+
 ## [0.4.9] - 2026-04-22
 
 ### Added

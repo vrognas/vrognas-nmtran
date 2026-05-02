@@ -34,9 +34,11 @@ import { FormattingService } from './services/formattingService';
 import { CompletionService } from './services/completionService';
 import { DefinitionService } from './services/definitionService';
 import { ParameterScanner } from './services/ParameterScanner';
+import { buildParsedModel } from './services/parsedModelService';
 
 // Import types and utilities
 import { DEFAULT_SETTINGS, NMTRANSettings } from './types';
+import { PARSED_MODEL_REQUEST } from './parsedModel';
 import { buildDocumentSymbols } from './utils/validateControlRecords';
 
 // =================================================================
@@ -238,6 +240,26 @@ connection.onDocumentSymbol((params) => {
   } catch (error) {
     connection.console.error(`❌ Error in document symbol handler: ${error}`);
     return [];
+  }
+});
+
+/**
+ * Custom request: structured snapshot of the active model file's
+ * declarations (THETA / OMEGA / SIGMA values, $INPUT columns, $DATA file).
+ * Consumers like positron-nonmem use this to render context-aware views
+ * without re-implementing NMTRAN parsing.
+ */
+connection.onRequest(PARSED_MODEL_REQUEST, (params: { textDocument: { uri: string } }) => {
+  try {
+    const doc = services.document.getDocument(params.textDocument.uri);
+    if (!doc) {
+      connection.console.error(`❌ Document not found for parsedModel: ${params.textDocument.uri}`);
+      return null;
+    }
+    return buildParsedModel(doc);
+  } catch (error) {
+    connection.console.error(`❌ Error in parsedModel handler: ${error}`);
+    return null;
   }
 });
 
