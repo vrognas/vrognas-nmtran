@@ -16,19 +16,7 @@ import {
   Equation,
 } from '../parsedModel';
 import { evaluate, EvalContext } from './nmtranExpression';
-
-/** Abbreviated-code blocks where top-level `name = rhs` lines are extracted. */
-const EQUATION_BLOCKS = new Set([
-  '$PRED',
-  '$PK',
-  '$ERROR',
-  '$DES',
-  '$MIX',
-  '$AES',
-  '$AESINITIAL',
-  '$INFN',
-  '$CONTR',
-]);
+import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
 export function buildParsedModel(doc: TextDocument): ParsedModel {
   const lines = doc.getText().split('\n');
@@ -184,7 +172,7 @@ function extractEquations(
     const recordMatch = /^\$(\w+)/.exec(trimmed);
     if (recordMatch && recordMatch[1]) {
       const blockName = '$' + recordMatch[1].toUpperCase();
-      currentBlock = EQUATION_BLOCKS.has(blockName) ? blockName : null;
+      currentBlock = ABBREVIATED_CODE_BLOCKS.has(blockName) ? blockName : null;
       continue;
     }
 

@@ -10,6 +10,7 @@ import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ParameterFactory } from '../factories/parameterFactory';
 import { ParameterValidator } from '../utils/parameterValidator';
 import { ErrorHandler } from '../utils/errorHandler';
+import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
 export interface ParameterLocation {
   type: 'THETA' | 'ETA' | 'EPS';
@@ -1560,9 +1561,6 @@ export class ParameterScanner {
     const errors: Array<{ message: string; line: number; startChar: number; endChar: number }> = [];
     const lines = document.getText().split('\n');
 
-    const ABBREVIATED_BLOCKS = new Set([
-      '$PK', '$PRED', '$ERROR', '$DES', '$MIX', '$AES', '$AESINITIAL', '$INFN', '$CONTR'
-    ]);
     // Order longest->shortest so alternation matches the longest first.
     const INFINITY_TOKEN = /\b(INFINITY|INFIN|INFTY|INF)\b/gi;
 
@@ -1582,7 +1580,7 @@ export class ParameterScanner {
       const controlRecordMatch = withoutComment.match(/^\$(\w+)/);
       if (controlRecordMatch) {
         const recordName = '$' + controlRecordMatch[1]!.toUpperCase();
-        inAbbreviatedBlock = ABBREVIATED_BLOCKS.has(recordName);
+        inAbbreviatedBlock = ABBREVIATED_CODE_BLOCKS.has(recordName);
         continue;
       }
 

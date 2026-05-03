@@ -73,8 +73,26 @@ export const allowedControlRecords = [
 ];
 
 /**
+ * Control records that introduce a block of NMTRAN abbreviated FORTRAN-ish
+ * code (assignments, IF/THEN, function calls, etc.). Inside these blocks,
+ * lexical conventions differ from the parameter-block records: identifiers
+ * are user-defined, infinity tokens are illegal, etc.
+ */
+export const ABBREVIATED_CODE_BLOCKS = new Set([
+  '$AES',
+  '$AESINITIAL',
+  '$CONTR',
+  '$DES',
+  '$ERROR',
+  '$INFN',
+  '$MIX',
+  '$PK',
+  '$PRED',
+]);
+
+/**
  * NMTRAN Reserved Variables
- * 
+ *
  * Special variables with predefined meanings in NMTRAN abbreviated code.
  */
 export const reservedVariables = [
