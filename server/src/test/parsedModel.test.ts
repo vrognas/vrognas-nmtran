@@ -100,6 +100,30 @@ describe('buildParsedModel', () => {
     ]);
   });
 
+  test('handles inline-after-record assignments ($PRED Y = ... on the same line)', () => {
+    // Mirrors the user's actual minimal probe — the $PRED token and the Y
+    // assignment share a single line. Earlier extractor missed this because
+    // it treated the line as record-only and continued.
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM inline',
+          '$INPUT ID TIME DV',
+          '$DATA d.csv IGNORE=@',
+          '$PRED Y = THETA(1) + ETA(1) + EPS(1)',
+          '$THETA 1',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    expect(m.inputColumns).toEqual(['ID', 'TIME', 'DV']);
+    expect(m.equations).toEqual([
+      { name: 'Y', rhs: 'THETA(1) + ETA(1) + EPS(1)', block: '$PRED', line: 3, value: 1 },
+    ]);
+  });
+
   test('evaluator resolves cross-equation references and returns undefined for unsupported syntax', () => {
     const m = buildParsedModel(
       doc(

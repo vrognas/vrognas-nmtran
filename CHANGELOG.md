@@ -7,6 +7,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-05-03
+
+### Fixed
+
+* **Inline-after-record assignments**: `$PRED Y = THETA(1) + ETA(1) + EPS(1)` on a
+  single line is now extracted correctly. Previous extractor consumed the `$PRED`
+  token then `continue`d, missing the inline `Y = ...` payload. Affects any
+  abbreviated-code block written compactly on one line.
+
 ## [0.4.12] - 2026-05-03
 
 ### Added

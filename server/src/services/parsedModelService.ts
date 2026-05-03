@@ -166,20 +166,25 @@ function extractEquations(
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const raw = lines[lineNum] ?? '';
     const code = stripComment(raw).trimEnd();
-    const trimmed = code.trim();
-    if (!trimmed) continue;
+    if (!code.trim()) continue;
 
-    const recordMatch = /^\$(\w+)/.exec(trimmed);
-    if (recordMatch && recordMatch[1]) {
-      const blockName = '$' + recordMatch[1].toUpperCase();
+    // A line may start with a $RECORD keyword AND carry an inline assignment
+    // afterwards (e.g. `$PRED Y = THETA(1) + ETA(1) + EPS(1)`). Capture the
+    // record (if any) and use whatever follows as the assignment text.
+    const recordMatch = /^\s*(\$\w+)\s*(.*)$/.exec(code);
+    let assignmentText: string;
+    if (recordMatch && recordMatch[1] !== undefined && recordMatch[2] !== undefined) {
+      const blockName = recordMatch[1].toUpperCase();
       currentBlock = ABBREVIATED_CODE_BLOCKS.has(blockName) ? blockName : null;
-      continue;
+      assignmentText = recordMatch[2];
+    } else {
+      assignmentText = code;
     }
 
-    if (!currentBlock) continue;
+    if (!currentBlock || !assignmentText.trim()) continue;
 
     // Bare `name = rhs` — single identifier LHS, no indexing, no compound assignment.
-    const assign = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(code);
+    const assign = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(assignmentText);
     if (!assign || !assign[1] || assign[2] === undefined) continue;
     const name = assign[1];
     const rhs = assign[2];
