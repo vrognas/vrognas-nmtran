@@ -30,6 +30,9 @@ export function buildParsedModel(doc: TextDocument): ParsedModel {
   const omegas = locations.filter((l) => l.type === 'ETA').map((l) => buildOmegaSigma(l, lines));
   const sigmas = locations.filter((l) => l.type === 'EPS').map((l) => buildOmegaSigma(l, lines));
 
+  resolveSameInheritance(omegas, lines);
+  resolveSameInheritance(sigmas, lines);
+
   const equations = extractEquations(lines, { thetas, omegas, sigmas });
 
   return {
@@ -94,6 +97,33 @@ function buildOmegaSigma(loc: ParameterLocation, lines: string[]): OmegaSigmaDec
     fix: hasFixRange(loc, lines),
     line: loc.line,
   };
+}
+
+/**
+ * Resolve `$OMEGA BLOCK(n) SAME` (and the analogous SIGMA form) so its decl
+ * carries the value of the prior BLOCK(n). Without this, SAME lines parse
+ * to NaN (parameterScanner records the location of the SAME keyword, which
+ * isn't numeric) and surface as `null` to consumers.
+ *
+ * Heuristic: if a decl's value is non-finite AND its source line carries a
+ * `SAME` token, inherit the most recent finite-valued decl's value.
+ * Multi-SAME stacks all resolve to the same anchor block. Edge cases not
+ * handled: interleaved BLOCK / non-BLOCK declarations where SAME refers
+ * past the immediately-prior decl — those are rare in practice and would
+ * need block-size-aware bookkeeping to handle precisely.
+ */
+function resolveSameInheritance(decls: OmegaSigmaDecl[], lines: string[]): void {
+  let lastValue: number | undefined;
+  for (const d of decls) {
+    if (Number.isFinite(d.value)) {
+      lastValue = d.value;
+      continue;
+    }
+    const lineText = lines[d.line] ?? '';
+    if (/\bSAME\b/i.test(lineText) && lastValue !== undefined) {
+      d.value = lastValue;
+    }
+  }
 }
 
 function sliceLocation(loc: ParameterLocation, lines: string[]): string {

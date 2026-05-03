@@ -7,6 +7,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.19] - 2026-05-03
+
+### Fixed
+
+* **`$OMEGA / $SIGMA BLOCK(n) SAME` no longer reports `null`** in
+  `parsedModel.omegas` / `parsedModel.sigmas`. SAME lines have a
+  non-numeric token at the parameterScanner-recorded location, so
+  `parseFloat` returned NaN and serialised as `null`. Now post-processed:
+  any non-finite-valued decl whose source line carries a `SAME` keyword
+  inherits the most recent finite-valued decl's value. Multiple SAMEs
+  in a row all resolve to the same anchor block.
+
 ## [0.4.18] - 2026-05-03
 
 ### Added

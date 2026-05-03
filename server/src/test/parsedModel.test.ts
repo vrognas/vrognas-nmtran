@@ -250,6 +250,54 @@ describe('buildParsedModel', () => {
     expect(byName.Y).toBe(1);
   });
 
+  test('OMEGA BLOCK(n) SAME inherits the value of the previous BLOCK declaration', () => {
+    // User reported OMEGA(4,4) showing as null in the Variables pane — SAME
+    // lines have a non-numeric token where parameterScanner records the
+    // location, so parseFloat returns NaN. NONMEM semantics: BLOCK(n) SAME
+    // inherits from the most recent BLOCK(n). Multi-line SAME stacks all
+    // inherit the same anchor value.
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM iov',
+          '$DATA d',
+          '$OMEGA  0  FIX  ; 1',
+          '$OMEGA  0.260981  ; 2',
+          '$OMEGA  BLOCK(1)',
+          '  0.0676983  ; 3',
+          '$OMEGA  BLOCK(1) SAME',
+          '$OMEGA  BLOCK(1) SAME',
+          '$OMEGA  BLOCK(1) SAME',
+          '$THETA 1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    const values = m.omegas.map((o) => o.value);
+    expect(values).toEqual([0, 0.260981, 0.0676983, 0.0676983, 0.0676983, 0.0676983]);
+    // Indices preserved — parameterScanner already numbers them sequentially.
+    expect(m.omegas.map((o) => o.index)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  test('SIGMA BLOCK(n) SAME inherits analogously', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM sigma-same',
+          '$DATA d',
+          '$SIGMA  BLOCK(1)',
+          '  0.05',
+          '$SIGMA  BLOCK(1) SAME',
+          '$THETA 1',
+          '$OMEGA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    expect(m.sigmas.map((s) => s.value)).toEqual([0.05, 0.05]);
+  });
+
   test('evaluator handles common NONMEM intrinsics (LOG / EXP / SQRT / MIN / MAX)', () => {
     const m = buildParsedModel(
       doc(
