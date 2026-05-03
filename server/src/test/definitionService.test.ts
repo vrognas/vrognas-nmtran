@@ -340,4 +340,56 @@ CL = THETA(1)`;
       expect(def).toBeDefined();
     });
   });
+
+  describe('user-defined variables (LHS bindings in $PRED / $PK / $ERROR / …)', () => {
+    it('jumps to the first top-level `name = rhs` line for the identifier', async () => {
+      const content = ['$PROBLEM x', '$DATA d', '$PK', '  CL = THETA(1) * 2', '  V = CL + 1'].join(
+        '\n',
+      );
+      const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
+
+      // Cursor on the `CL` USAGE inside `V = CL + 1` (line 4, char 6).
+      const def = await service.provideDefinition(doc, Position.create(4, 6));
+      expect(def).not.toBeNull();
+      expect(def!).toHaveLength(1);
+      const loc = def![0]!;
+      // Should jump to the LHS `CL` on line 3.
+      expect(loc.range.start.line).toBe(3);
+      expect(loc.range.start.character).toBe(2); // after the two leading spaces
+      expect(loc.range.end.character).toBe(4); // 'CL' is 2 chars
+    });
+
+    it('finds all references to a user variable (LHS + RHS uses, skips comments)', () => {
+      const content = [
+        '$PROBLEM x',
+        '$DATA d',
+        '$PK',
+        '  CL = THETA(1) * 2',
+        '  V = CL + 1',
+        '  ; CL not real',
+        '$ERROR',
+        '  IPRED = CL / V',
+      ].join('\n');
+      const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
+
+      // Cursor on the `CL` LHS at line 3.
+      const refs = service.provideReferences(doc, Position.create(3, 2), true);
+      expect(refs).not.toBeNull();
+      // Three real CL occurrences: the LHS on line 3, RHS on line 4, RHS on line 7.
+      // The commented `CL` on line 5 should be excluded.
+      const lines = refs!.map((r) => r.range.start.line).sort();
+      expect(lines).toEqual([3, 4, 7]);
+    });
+
+    it('returns null gracefully for an undefined identifier', async () => {
+      const content = ['$PROBLEM x', '$DATA d', '$PK', '  CL = THETA(1)'].join('\n');
+      const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
+
+      // Cursor on `THETA` (which IS defined-by-system but isn't a user variable
+      // and isn't `THETA(n)` because we point right at the bare `T` in 'THETA(1)').
+      // Actually parameter regex DOES match this — let's pick a known-undefined id.
+      const noDef = await service.provideDefinition(doc, Position.create(2, 1)); // on '$PK' itself
+      expect(noDef).toBeNull();
+    });
+  });
 });

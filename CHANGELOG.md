@@ -7,6 +7,20 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.16] - 2026-05-03
+
+### Added
+
+* **F12 / Find References on user-defined variables** (LHS bindings inside
+  `$PRED` / `$PK` / `$ERROR` / `$DES` / `$MIX` / `$AES` / `$AESINITIAL` /
+  `$INFN` / `$CONTR` blocks). Cursor on `CL` in `V = CL + 1` now jumps to
+  the line where `CL = …` is declared. "Find All References" lists every
+  non-comment occurrence in the document. NONMEM indexed arrays
+  (`THETA(n)` / `ETA(n)` / `EPS(n)` / `OMEGA(i,j)` / `SIGMA(i,j)`) keep
+  using the existing parameter path; the user-variable fallback only fires
+  when the parameter path returns null. Reserved keywords
+  (`IF`/`THEN`/`ENDIF`/`AND`/…) are excluded.
+
 ## [0.4.15] - 2026-05-03
 
 ### Added

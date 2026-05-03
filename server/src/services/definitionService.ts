@@ -10,11 +10,12 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ParameterScanner } from './ParameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
+import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
 // Constants for consistent parameter pattern matching
 const PARAMETER_PATTERNS = {
   THETA: /^\$THETA(\s|$)/i,
-  OMEGA: /^\$OMEGA(\s|$)/i, 
+  OMEGA: /^\$OMEGA(\s|$)/i,
   SIGMA: /^\$SIGMA(\s|$)/i,
   BLOCK: /BLOCK\((\d+)\)/i,
   SAME: /\bSAME\b/i,
@@ -23,6 +24,43 @@ const PARAMETER_PATTERNS = {
 
 // Factory function to create fresh regex instances to avoid state contamination
 const createParameterUsageRegex = () => new RegExp(PARAMETER_PATTERNS.PARAMETER_USAGE_SOURCE, 'gi');
+
+/** NONMEM array names handled by the parameter (THETA/ETA/EPS) path; user-variable lookup skips these. */
+const NONMEM_INDEXED_ARRAYS = new Set(['THETA', 'ETA', 'EPS', 'ERR', 'OMEGA', 'SIGMA']);
+
+/** NMTRAN reserved words / control flow that aren't user-defined variables. Cursor on these returns null. */
+const NMTRAN_KEYWORDS = new Set([
+  'IF',
+  'THEN',
+  'ELSE',
+  'ELSEIF',
+  'ENDIF',
+  'DO',
+  'ENDDO',
+  'CALL',
+  'AND',
+  'OR',
+  'NOT',
+  'EQ',
+  'NE',
+  'LT',
+  'LE',
+  'GT',
+  'GE',
+  'TRUE',
+  'FALSE',
+  'FIX',
+  'FIXED',
+]);
+
+function stripInlineComment(line: string): string {
+  const idx = line.indexOf(';');
+  return idx === -1 ? line : line.slice(0, idx);
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 
 type ParameterType = 'THETA' | 'ETA' | 'EPS';
@@ -69,14 +107,20 @@ export class DefinitionService {
       async () => {
         try {
           const parameter = this.getParameterAtPosition(document, position);
-          if (!parameter) {
-            return null;
+          if (parameter) {
+            const definitionLocations = this.findAllDefinitionLocations(document, parameter);
+            return definitionLocations.length > 0 ? definitionLocations : null;
           }
 
-          const definitionLocations = this.findAllDefinitionLocations(document, parameter);
-          
-          return definitionLocations.length > 0 ? definitionLocations : null;
+          // Fallback: user-defined variable (LHS of `name = rhs` inside an
+          // abbreviated-code block — $PRED / $PK / $ERROR / $DES / …).
+          const userVar = this.getUserVariableAtPosition(document, position);
+          if (userVar) {
+            const loc = this.findUserVariableDefinition(document, userVar);
+            return loc ? [loc] : null;
+          }
 
+          return null;
         } catch (error) {
           this.connection.console.error(`❌ Error in definition provider: ${error}`);
           return null;
@@ -93,13 +137,16 @@ export class DefinitionService {
   provideReferences(document: TextDocument, position: Position, includeDeclaration: boolean): Location[] | null {
     try {
       const parameter = this.getParameterAtPosition(document, position);
-      if (!parameter) {
-        return null;
+      if (parameter) {
+        return this.findAllReferences(document, parameter, includeDeclaration);
       }
 
-      const references = this.findAllReferences(document, parameter, includeDeclaration);
-      return references;
+      const userVar = this.getUserVariableAtPosition(document, position);
+      if (userVar) {
+        return this.findUserVariableReferences(document, userVar, includeDeclaration);
+      }
 
+      return null;
     } catch (error) {
       this.connection.console.error(`❌ Error in references provider: ${error}`);
       return null;
@@ -972,6 +1019,115 @@ export class DefinitionService {
       default:
         return false;
     }
+  }
+
+  /**
+   * If the cursor sits on a bare identifier *inside an abbreviated-code
+   * block* ($PRED / $PK / $ERROR / $DES / …) and that identifier isn't a
+   * NONMEM array (THETA / ETA / EPS / ERR / OMEGA / SIGMA — those are
+   * handled by the parameter path), return the identifier text. Used for
+   * F12 / Find-References on user-defined variables like `CL`, `V1`, `Y`.
+   */
+  private getUserVariableAtPosition(document: TextDocument, position: Position): string | null {
+    const word = this.getWordAtPosition(document, position);
+    if (!word) return null;
+    const upper = word.toUpperCase();
+    if (NONMEM_INDEXED_ARRAYS.has(upper)) return null;
+    if (NMTRAN_KEYWORDS.has(upper)) return null;
+    if (!this.isInAbbreviatedCodeBlock(document, position.line)) return null;
+    return word;
+  }
+
+  private getWordAtPosition(document: TextDocument, position: Position): string | null {
+    const line = document.getText({
+      start: { line: position.line, character: 0 },
+      end: { line: position.line, character: Number.MAX_VALUE },
+    });
+    for (const match of line.matchAll(/[A-Za-z_][A-Za-z0-9_]*/g)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+      if (position.character >= start && position.character <= end) return match[0];
+    }
+    return null;
+  }
+
+  /** Walk back from `lineNum` to the most recent $RECORD; return true if it's an abbreviated-code block. */
+  private isInAbbreviatedCodeBlock(document: TextDocument, lineNum: number): boolean {
+    const lines = document.getText().split(/\r?\n/);
+    for (let i = lineNum; i >= 0; i--) {
+      const trimmed = (lines[i] ?? '').trim();
+      if (trimmed.startsWith(';') || !trimmed) continue;
+      const m = trimmed.match(/^\$(\w+)/);
+      if (!m) continue;
+      return ABBREVIATED_CODE_BLOCKS.has('$' + m[1]!.toUpperCase());
+    }
+    return false;
+  }
+
+  /** First top-level `<name> = …` assignment inside an abbreviated-code block. */
+  private findUserVariableDefinition(document: TextDocument, name: string): Location | null {
+    const lines = document.getText().split(/\r?\n/);
+    let inAbbreviated = false;
+    const upper = name.toUpperCase();
+    const assignRe = new RegExp(`^\\s*(${escapeRegex(name)})\\s*=`, 'i');
+    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+      const raw = lines[lineNum] ?? '';
+      const codeOnly = stripInlineComment(raw);
+      if (!codeOnly.trim()) continue;
+
+      // Track whether we're in an abbreviated-code block, accounting for
+      // `$RECORD <name> = …` inline-after-record forms.
+      const recordMatch = codeOnly.match(/^\s*\$(\w+)\s*(.*)$/);
+      let scanFrom = 0;
+      let scanText = codeOnly;
+      if (recordMatch && recordMatch[1] !== undefined) {
+        const blockName = '$' + recordMatch[1].toUpperCase();
+        inAbbreviated = ABBREVIATED_CODE_BLOCKS.has(blockName);
+        scanFrom = codeOnly.length - (recordMatch[2] ?? '').length;
+        scanText = recordMatch[2] ?? '';
+      }
+      if (!inAbbreviated) continue;
+
+      const assignMatch = scanText.match(assignRe);
+      if (!assignMatch || !assignMatch[1] || assignMatch[1].toUpperCase() !== upper) continue;
+      const lhsStart = scanFrom + assignMatch[0].indexOf(assignMatch[1]);
+      return {
+        uri: document.uri,
+        range: {
+          start: { line: lineNum, character: lhsStart },
+          end: { line: lineNum, character: lhsStart + assignMatch[1].length },
+        },
+      };
+    }
+    return null;
+  }
+
+  /** All non-comment occurrences of the bare identifier in the document. */
+  private findUserVariableReferences(
+    document: TextDocument,
+    name: string,
+    _includeDeclaration: boolean,
+  ): Location[] {
+    const lines = document.getText().split(/\r?\n/);
+    const results: Location[] = [];
+    const wordRe = new RegExp(`\\b${escapeRegex(name)}\\b`, 'gi');
+    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+      const raw = lines[lineNum] ?? '';
+      const commentIdx = raw.indexOf(';');
+      const codeEnd = commentIdx === -1 ? raw.length : commentIdx;
+      for (const match of raw.matchAll(wordRe)) {
+        const idx = match.index ?? 0;
+        if (idx >= codeEnd) break;
+        results.push({
+          uri: document.uri,
+          range: {
+            start: { line: lineNum, character: idx },
+            end: { line: lineNum, character: idx + match[0].length },
+          },
+        });
+      }
+    }
+    return results;
   }
 
   /**
