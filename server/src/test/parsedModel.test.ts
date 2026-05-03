@@ -165,7 +165,68 @@ describe('buildParsedModel', () => {
     const byName = Object.fromEntries(m.equations.map((e) => [e.name, e]));
     expect(byName.CL.value).toBe(6);
     expect(byName.V.value).toBe(7);
-    expect(byName.K.value).toBeUndefined(); // LOG(...) not implemented
-    expect(byName.COND.value).toBeUndefined(); // .GT. not implemented
+    expect(byName.K.value).toBeCloseTo(Math.log(6), 8); // LOG = natural log per NONMEM
+    expect(byName.COND.value).toBeUndefined(); // .GT. comparison not implemented
+  });
+
+  test('skips assignments inside IF/THEN ... ENDIF blocks (runtime-conditional)', () => {
+    // Mirrors colistin-pk-model.mod's $ERROR block: F_FLAG = 0 unconditionally,
+    // then F_FLAG = 1 inside `IF(...) THEN ... ENDIF`. Only the unconditional
+    // assignment should land in equations[].
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM cond',
+          '$DATA d',
+          '$ERROR',
+          '  F_FLAG = 0',
+          '  IF(BLOQ.EQ.1.OR.BMS.EQ.1) THEN',
+          '    F_FLAG = 1',
+          '    IWRES = 0',
+          '  ENDIF',
+          '  Y = 1',
+          '$THETA 1',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    const names = m.equations.map((e) => e.name);
+    expect(names).toEqual(['F_FLAG', 'Y']);
+    const byName = Object.fromEntries(m.equations.map((e) => [e.name, e.value]));
+    expect(byName.F_FLAG).toBe(0);
+    expect(byName.Y).toBe(1);
+  });
+
+  test('evaluator handles common NONMEM intrinsics (LOG / EXP / SQRT / MIN / MAX)', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM intrinsics',
+          '$DATA d',
+          '$PK',
+          '  BCMS = LOG(0.120*1000/1628)',
+          '  E = EXP(0)',
+          '  S = SQRT(9)',
+          '  LO = LOG10(100)',
+          '  MN = MIN(5, 3, 8)',
+          '  MX = MAX(5, 3, 8)',
+          '  AB = ABS(-7)',
+          '$THETA 1',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    const byName = Object.fromEntries(m.equations.map((e) => [e.name, e.value]));
+    expect(byName.BCMS).toBeCloseTo(Math.log(0.12 * 1000 / 1628), 8);
+    expect(byName.E).toBe(1);
+    expect(byName.S).toBe(3);
+    expect(byName.LO).toBe(2);
+    expect(byName.MN).toBe(3);
+    expect(byName.MX).toBe(8);
+    expect(byName.AB).toBe(7);
   });
 });

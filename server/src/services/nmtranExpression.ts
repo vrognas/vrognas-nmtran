@@ -33,6 +33,9 @@ export function evaluate(rhs: string, ctx: EvalContext): number | undefined {
 const NUMBER_RE = /^[0-9]+(?:\.[0-9]*)?(?:[eEdD][+-]?[0-9]+)?|^\.[0-9]+(?:[eEdD][+-]?[0-9]+)?/;
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*/;
 
+/** Identifiers that, when followed by `(...)`, denote indexed-array access (not a function call). */
+const INDEXED_ARRAYS = new Set(['THETA', 'ETA', 'EPS', 'ERR', 'OMEGA', 'SIGMA']);
+
 class Parser {
   private pos = 0;
   constructor(
@@ -137,22 +140,34 @@ class Parser {
     this.skipWs();
     if (this.peek() === '(') {
       this.pos++;
-      const idx1 = Math.floor(this.parseExpression());
-      this.skipWs();
-      let idx2: number | undefined;
-      if (this.peek() === ',') {
-        this.pos++;
-        idx2 = Math.floor(this.parseExpression());
-        this.skipWs();
-      }
+      const args = this.parseArgList();
       if (this.peek() !== ')') throw new Error('expected )');
       this.pos++;
-      return this.resolveIndexed(name, idx1, idx2);
+      if (INDEXED_ARRAYS.has(name)) {
+        return this.resolveIndexed(name, args);
+      }
+      return this.resolveFunctionCall(name, args);
     }
     return this.resolveBare(name);
   }
 
-  private resolveIndexed(name: string, idx1: number, idx2: number | undefined): number {
+  private parseArgList(): number[] {
+    const args: number[] = [];
+    this.skipWs();
+    if (this.peek() === ')') return args;
+    args.push(this.parseExpression());
+    while (true) {
+      this.skipWs();
+      if (this.peek() !== ',') break;
+      this.pos++;
+      args.push(this.parseExpression());
+    }
+    return args;
+  }
+
+  private resolveIndexed(name: string, args: number[]): number {
+    const idx1 = Math.floor(args[0] ?? NaN);
+    const idx2 = args.length > 1 ? Math.floor(args[1]!) : undefined;
     if (name === 'THETA') {
       const v = this.ctx.thetas.get(idx1);
       if (v === undefined) throw new Error(`THETA(${idx1}) undeclared`);
@@ -172,8 +187,58 @@ class Parser {
       if (v === undefined) throw new Error(`${name}(${idx1}) undeclared`);
       return v;
     }
-    // Anything else with parens is a function call (LOG, EXP, ...) — not supported.
-    throw new Error(`function not supported: ${name}`);
+    throw new Error(`indexed array not supported: ${name}`);
+  }
+
+  /**
+   * Evaluate a NONMEM intrinsic function call. Covers the common
+   * arithmetic/transcendental set; protective variants (P-prefixed) map
+   * to the same behaviour because we don't simulate domain-violation
+   * recovery — values that overflow or hit log(0) just become NaN.
+   * Functions outside this set throw, which the outer evaluator catches
+   * and surfaces as `value: undefined`.
+   */
+  private resolveFunctionCall(name: string, args: number[]): number {
+    switch (name) {
+      case 'LOG':
+      case 'PLOG':
+        return Math.log(args[0]!);
+      case 'LOG10':
+        return Math.log10(args[0]!);
+      case 'EXP':
+      case 'PEXP':
+        return Math.exp(args[0]!);
+      case 'SQRT':
+      case 'PSQRT':
+        return Math.sqrt(args[0]!);
+      case 'ABS':
+        return Math.abs(args[0]!);
+      case 'SIN':
+      case 'PSIN':
+        return Math.sin(args[0]!);
+      case 'COS':
+      case 'PCOS':
+        return Math.cos(args[0]!);
+      case 'TAN':
+      case 'PTAN':
+        return Math.tan(args[0]!);
+      case 'ASIN':
+        return Math.asin(args[0]!);
+      case 'ACOS':
+        return Math.acos(args[0]!);
+      case 'ATAN':
+        return Math.atan(args[0]!);
+      case 'MIN':
+        return Math.min(...args);
+      case 'MAX':
+        return Math.max(...args);
+      case 'MOD':
+        return args[0]! % args[1]!;
+      case 'INT':
+        return Math.trunc(args[0]!);
+      default:
+        throw new Error(`function not supported: ${name}`);
+    }
   }
 
   private resolveBare(name: string): number {

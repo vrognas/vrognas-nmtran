@@ -7,6 +7,26 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.15] - 2026-05-03
+
+### Added
+
+* **Intrinsic functions in the equation evaluator**: `LOG` (natural log per NONMEM),
+  `LOG10`, `EXP`, `SQRT`, `ABS`, `SIN/COS/TAN` and inverse trigs, `MIN`, `MAX`,
+  `MOD`, `INT`. Protective variants (`PLOG`, `PEXP`, etc.) map to the same
+  behaviour. Lets `BCMS = LOG(0.120*1000/1628)` and similar real-model
+  expressions resolve in `parsedModel.equations`.
+
+### Fixed
+
+* **Skip assignments inside `IF(...) THEN ... ENDIF` blocks**. Previously the
+  evaluator captured every `name = rhs` line, including ones nested inside
+  conditional blocks — so `F_FLAG` ended up with `value: 1` from the inner
+  `F_FLAG = 1` line even though the unconditional value is 0. Tracker now
+  ignores assignments while `ifDepth > 0`. Single-line `IF(...) X = Y` was
+  already (incidentally) skipped because the line starts with `IF`, not a
+  bare identifier.
+
 ## [0.4.14] - 2026-05-03
 
 ### Fixed

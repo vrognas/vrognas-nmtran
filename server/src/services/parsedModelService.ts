@@ -166,6 +166,10 @@ function extractEquations(
 
   const equations: Equation[] = [];
   let currentBlock: string | null = null;
+  // IF(...) THEN ... ENDIF blocks are runtime-conditional — assignments
+  // inside them depend on input data and shouldn't be lifted as
+  // unconditional values. Track nesting depth and skip captures while > 0.
+  let ifDepth = 0;
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const raw = lines[lineNum] ?? '';
@@ -181,11 +185,28 @@ function extractEquations(
       const blockName = recordMatch[1].toUpperCase();
       currentBlock = ABBREVIATED_CODE_BLOCKS.has(blockName) ? blockName : null;
       assignmentText = recordMatch[2];
+      ifDepth = 0; // crossing a record boundary closes any dangling IF context
     } else {
       assignmentText = code;
     }
 
-    if (!currentBlock || !assignmentText.trim()) continue;
+    if (!currentBlock) continue;
+
+    // IF/THEN/ENDIF tracking. Single-line `IF(...) X = Y` form has no THEN,
+    // so it doesn't open a block — it's also not captured by the assignment
+    // regex below because the line starts with `IF`, not an identifier+`=`.
+    const stripped = assignmentText.trim();
+    if (/^IF\s*\(.+\)\s*THEN\b/i.test(stripped)) {
+      ifDepth++;
+      continue;
+    }
+    if (/^ENDIF\b/i.test(stripped) || /^END\s*IF\b/i.test(stripped)) {
+      if (ifDepth > 0) ifDepth--;
+      continue;
+    }
+    if (ifDepth > 0) continue;
+
+    if (!assignmentText.trim()) continue;
 
     // Bare `name = rhs` — single identifier LHS, no indexing, no compound assignment.
     const assign = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(assignmentText);
