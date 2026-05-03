@@ -65,14 +65,15 @@ function extractInputColumns(lines: string[]): string[] {
 function buildTheta(loc: ParameterLocation, lines: string[]): ThetaDecl {
   const text = sliceLocation(loc, lines);
   const fix = hasFixRange(loc, lines);
+  const line = loc.line;
   if (text.startsWith('(')) {
     const parts = splitBoundParts(text.slice(1, -1)).map((p) => p.trim());
     const nums = parts.map(parseFloatOrUndef);
     if (parts.length === 1) {
-      return { index: loc.index, init: nums[0]!, fix };
+      return { index: loc.index, init: nums[0]!, fix, line };
     }
     if (parts.length === 2) {
-      return { index: loc.index, init: nums[1]!, lower: nums[0]!, fix };
+      return { index: loc.index, init: nums[1]!, lower: nums[0]!, fix, line };
     }
     return {
       index: loc.index,
@@ -80,9 +81,10 @@ function buildTheta(loc: ParameterLocation, lines: string[]): ThetaDecl {
       lower: nums[0]!,
       upper: nums[2]!,
       fix,
+      line,
     };
   }
-  return { index: loc.index, init: parseFloat(text), fix };
+  return { index: loc.index, init: parseFloat(text), fix, line };
 }
 
 function buildOmegaSigma(loc: ParameterLocation, lines: string[]): OmegaSigmaDecl {
@@ -90,6 +92,7 @@ function buildOmegaSigma(loc: ParameterLocation, lines: string[]): OmegaSigmaDec
     index: loc.index,
     value: parseFloat(sliceLocation(loc, lines)),
     fix: hasFixRange(loc, lines),
+    line: loc.line,
   };
 }
 

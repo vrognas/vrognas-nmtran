@@ -18,6 +18,8 @@ export interface ThetaDecl {
   upper?: number;
   /** True when a FIX/FIXED keyword applies to this declaration. */
   fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
 }
 
 export interface OmegaSigmaDecl {
@@ -27,6 +29,8 @@ export interface OmegaSigmaDecl {
   value: number;
   /** True when a FIX/FIXED keyword applies. */
   fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
 }
 
 /**

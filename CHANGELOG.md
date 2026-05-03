@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.18] - 2026-05-03
+
+### Added
+
+* **`line` field on `ThetaDecl` / `OmegaSigmaDecl`**. Each parameter declaration
+  now carries the 0-based source line of its number token, alongside the
+  existing `line` on `Equation`. Enables consumers (e.g. positron-nonmem's
+  Variables-pane) to implement go-to-definition for `THETA(n)` /
+  `OMEGA(n,n)` / `SIGMA(n,n)` rows without re-running ParameterScanner.
+
 ## [0.4.17] - 2026-05-03
 
 ### Added

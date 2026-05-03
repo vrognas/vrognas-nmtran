@@ -20,12 +20,16 @@ export interface NmtranThetaDecl {
   lower?: number;
   upper?: number;
   fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
 }
 
 export interface NmtranOmegaSigmaDecl {
   index: number;
   value: number;
   fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
 }
 
 export interface NmtranEquation {

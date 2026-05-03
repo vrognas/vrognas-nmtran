@@ -30,9 +30,31 @@ describe('buildParsedModel', () => {
 
     expect(m.dataFile).toBe('d.csv');
     expect(m.inputColumns).toEqual(['ID', 'TIME', 'DV']);
-    expect(m.thetas).toEqual([{ index: 1, init: 1, fix: false }]);
-    expect(m.omegas).toEqual([{ index: 1, value: 0.1, fix: false }]);
-    expect(m.sigmas).toEqual([{ index: 1, value: 0.1, fix: false }]);
+    expect(m.thetas).toEqual([{ index: 1, init: 1, fix: false, line: 4 }]);
+    expect(m.omegas).toEqual([{ index: 1, value: 0.1, fix: false, line: 5 }]);
+    expect(m.sigmas).toEqual([{ index: 1, value: 0.1, fix: false, line: 6 }]);
+  });
+
+  test('THETA / OMEGA / SIGMA decls carry their declaration line (used for goto-definition from Variables pane)', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM line tracking',
+          '$DATA d',
+          '$THETA',
+          '  1.0     ; CL',
+          '  2.0     ; V',
+          '$OMEGA',
+          '  0.1     ; PPV CL',
+          '$SIGMA',
+          '  0.05    ; res err',
+        ].join('\n'),
+      ),
+    );
+
+    expect(m.thetas.map((t) => t.line)).toEqual([3, 4]);
+    expect(m.omegas.map((o) => o.line)).toEqual([6]);
+    expect(m.sigmas.map((s) => s.line)).toEqual([8]);
   });
 
   test('THETA bound triples and FIX flags parse correctly', () => {
@@ -51,12 +73,12 @@ describe('buildParsedModel', () => {
     );
 
     expect(m.thetas).toEqual([
-      { index: 1, init: 1.5, lower: 0, upper: 10, fix: false },
-      { index: 2, init: 2, fix: true },
-      { index: 3, init: 3, lower: 0, fix: false },
+      { index: 1, init: 1.5, lower: 0, upper: 10, fix: false, line: 2 },
+      { index: 2, init: 2, fix: true, line: 3 },
+      { index: 3, init: 3, lower: 0, fix: false, line: 4 },
     ]);
-    expect(m.omegas).toEqual([{ index: 1, value: 0.1, fix: true }]);
-    expect(m.sigmas).toEqual([{ index: 1, value: 0.2, fix: false }]);
+    expect(m.omegas).toEqual([{ index: 1, value: 0.1, fix: true, line: 5 }]);
+    expect(m.sigmas).toEqual([{ index: 1, value: 0.2, fix: false, line: 6 }]);
   });
 
   test('returns null dataFile when no $DATA record present (read-only inspection)', () => {
