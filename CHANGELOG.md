@@ -7,6 +7,21 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.17] - 2026-05-03
+
+### Added
+
+* **`&` line-continuation support in `parsedModel.equations`**. Multi-line
+  assignments like
+  ```
+  IOVCL = OCC1*ETA(3) + OCC2*ETA(4) +&
+          OCC5*ETA(7) + ...
+  ```
+  are now collapsed into single logical lines before extraction, so the
+  evaluator sees the full rhs and the captured `rhs` reads cleanly (whitespace
+  runs collapsed). The `line` field on the resulting Equation points at the
+  first physical line of the multi-line statement.
+
 ## [0.4.16] - 2026-05-03
 
 ### Added

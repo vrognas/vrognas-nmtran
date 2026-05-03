@@ -169,6 +169,35 @@ describe('buildParsedModel', () => {
     expect(byName.COND.value).toBeUndefined(); // .GT. comparison not implemented
   });
 
+  test('joins `&`-continuation lines into a single logical assignment', () => {
+    // Pattern straight from real colistin-pk-model.mod $PK block.
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM cont',
+          '$DATA d',
+          '$PK',
+          '  OCC1 = 0',
+          '  OCC2 = 0',
+          '  OCC3 = 0',
+          '  IOVCL = OCC1*ETA(1) + OCC2*ETA(2) +&',
+          '          OCC3*ETA(3)',
+          '$THETA 1',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+
+    const iovcl = m.equations.find((e) => e.name === 'IOVCL');
+    expect(iovcl).toBeDefined();
+    expect(iovcl!.rhs).toBe('OCC1*ETA(1) + OCC2*ETA(2) + OCC3*ETA(3)');
+    // OCCn = 0, ETA(n) = 0 (typical individual) -> IOVCL = 0
+    expect(iovcl!.value).toBe(0);
+    // The line number should point at the first line of the multi-line statement.
+    expect(iovcl!.line).toBe(6);
+  });
+
   test('skips assignments inside IF/THEN ... ENDIF blocks (runtime-conditional)', () => {
     // Mirrors colistin-pk-model.mod's $ERROR block: F_FLAG = 0 unconditionally,
     // then F_FLAG = 1 inside `IF(...) THEN ... ENDIF`. Only the unconditional

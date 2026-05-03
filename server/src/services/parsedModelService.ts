@@ -153,6 +153,38 @@ function parseFloatOrUndef(s: string): number | undefined {
  * pre-evaluated against prior bindings so consumers can render values
  * without re-implementing the evaluator.
  */
+/**
+ * Collapse NMTRAN `&`-continuation lines into single logical lines.
+ * A non-comment line ending in `&` continues onto the next; we keep
+ * joining until we hit a line whose code-portion doesn't end in `&`.
+ * The returned `line` is the first physical line of the join chain so
+ * downstream consumers can still anchor diagnostics / hovers correctly.
+ */
+function joinContinuations(lines: string[]): Array<{ text: string; line: number }> {
+  const out: Array<{ text: string; line: number }> = [];
+  let i = 0;
+  while (i < lines.length) {
+    const startLine = i;
+    let buf = lines[i] ?? '';
+    while (true) {
+      const code = stripComment(buf).trimEnd();
+      if (!code.endsWith('&')) break;
+      // Drop the trailing `&` (and the comment, since continuation discards
+      // anything after the `&` token), splice in the next physical line.
+      const trimmed = code.slice(0, -1).trimEnd();
+      i++;
+      if (i >= lines.length) {
+        buf = trimmed; // trailing `&` with no successor — accept as-is
+        break;
+      }
+      buf = trimmed + ' ' + (lines[i] ?? '');
+    }
+    out.push({ text: buf, line: startLine });
+    i++;
+  }
+  return out;
+}
+
 function extractEquations(
   lines: string[],
   decls: { thetas: ThetaDecl[]; omegas: OmegaSigmaDecl[]; sigmas: OmegaSigmaDecl[] },
@@ -171,8 +203,12 @@ function extractEquations(
   // unconditional values. Track nesting depth and skip captures while > 0.
   let ifDepth = 0;
 
-  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-    const raw = lines[lineNum] ?? '';
+  // Collapse `&`-continuation lines into single logical lines first. The
+  // line number recorded on the resulting Equation points at the first
+  // physical line of the multi-line statement.
+  const logical = joinContinuations(lines);
+
+  for (const { text: raw, line: lineNum } of logical) {
     const code = stripComment(raw).trimEnd();
     if (!code.trim()) continue;
 
@@ -212,7 +248,10 @@ function extractEquations(
     const assign = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$/.exec(assignmentText);
     if (!assign || !assign[1] || assign[2] === undefined) continue;
     const name = assign[1];
-    const rhs = assign[2];
+    // Collapse runs of whitespace so joined-from-continuation rhs strings
+    // read cleanly (`A +    B` -> `A + B`). Evaluator already ignores
+    // whitespace; this is purely for display.
+    const rhs = assign[2].replace(/\s+/g, ' ');
     const value = evaluate(rhs, ctx);
     equations.push({ name, rhs, block: currentBlock, line: lineNum, value });
     if (value !== undefined) ctx.bindings.set(name.toUpperCase(), value);
