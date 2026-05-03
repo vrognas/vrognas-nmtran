@@ -7,6 +7,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-05-03
+
+### Added
+
+* **`NMTRAN: Show Parsed Model (Debug)` command**: dumps the `nmtran/parsedModel`
+  response for the active file into a new JSON editor. Lets developers smoke-test
+  the parser against real `.mod` files without going through a consumer extension.
+
 ## [0.4.11] - 2026-05-03
 
 ### Added

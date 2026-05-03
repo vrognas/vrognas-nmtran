@@ -40,6 +40,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<Nmtran
     // Setup configuration change handlers
     setupConfigurationHandlers(context);
 
+    // Debug command: dumps the parsedModel response for the active file
+    // into a new JSON document so devs can sanity-check the LSP output.
+    context.subscriptions.push(
+      vscode.commands.registerCommand('nmtran.showParsedModel', () =>
+        showParsedModelCommand(),
+      ),
+    );
+
     logger.completion('Activation completed successfully');
 
     // Return the public API for companion extensions to consume.
@@ -98,6 +106,32 @@ function setupConfigurationHandlers(context: vscode.ExtensionContext): void {
   });
 
   context.subscriptions.push(configSubscription);
+}
+
+/**
+ * Open the parsedModel response for the active NMTRAN file in a new
+ * untitled JSON editor — handy for verifying server output during dev.
+ */
+async function showParsedModelCommand(): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== 'nmtran') {
+    void vscode.window.showErrorMessage('NMTRAN: open a NMTRAN (.mod / .ctl / .lst) file first.');
+    return;
+  }
+  const result = await languageServerManager.sendParsedModelRequest(
+    editor.document.uri.toString(),
+  );
+  if (result === null) {
+    void vscode.window.showErrorMessage(
+      'NMTRAN: parsedModel request returned null — server not ready or document unknown.',
+    );
+    return;
+  }
+  const doc = await vscode.workspace.openTextDocument({
+    language: 'json',
+    content: JSON.stringify(result, null, 2),
+  });
+  await vscode.window.showTextDocument(doc, { preview: false });
 }
 
 /**

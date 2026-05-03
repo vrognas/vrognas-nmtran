@@ -1,6 +1,6 @@
 {
   "name": "nmtran",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "license": "MIT",
   "displayName": "NMTRAN",
   "publisher": "vrognas",
@@ -92,6 +92,12 @@
       {
         "language": "nmtran",
         "path": "./snippets/snippets.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "nmtran.showParsedModel",
+        "title": "NMTRAN: Show Parsed Model (Debug)"
       }
     ],
     "configuration": {
