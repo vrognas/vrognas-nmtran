@@ -19,7 +19,11 @@ import { evaluate, EvalContext } from './nmtranExpression';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
 export function buildParsedModel(doc: TextDocument): ParsedModel {
-  const lines = doc.getText().split('\n');
+  // Split on either LF or CRLF so individual line strings never carry a
+  // trailing \r. Without this, regexes anchored with `$` fail to match on
+  // CRLF files because `.` doesn't consume \r and `$` (no `m` flag) won't
+  // match before \r.
+  const lines = doc.getText().split(/\r?\n/);
   const locations = ParameterScanner.scanDocument(doc);
 
   const thetas = locations.filter((l) => l.type === 'THETA').map((l) => buildTheta(l, lines));

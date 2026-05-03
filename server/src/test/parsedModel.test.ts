@@ -100,6 +100,26 @@ describe('buildParsedModel', () => {
     ]);
   });
 
+  test('CRLF line endings: $INPUT and $DATA still extract correctly', () => {
+    // Real Windows-saved .mod files are CRLF. The regex `(.*)$` without the
+    // `m` flag won't match if the line ends with \r — caught a regression
+    // where extractInputColumns silently returned [].
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM crlf',
+          '$INPUT ID TIME DV',
+          '$DATA d.csv IGNORE=@',
+          '$THETA 1',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\r\n'),
+      ),
+    );
+    expect(m.dataFile).toBe('d.csv');
+    expect(m.inputColumns).toEqual(['ID', 'TIME', 'DV']);
+  });
+
   test('handles inline-after-record assignments ($PRED Y = ... on the same line)', () => {
     // Mirrors the user's actual minimal probe — the $PRED token and the Y
     // assignment share a single line. Earlier extractor missed this because

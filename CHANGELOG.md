@@ -7,6 +7,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.14] - 2026-05-03
+
+### Fixed
+
+* **CRLF line endings broke `$INPUT` and `$DATA` extraction in `parsedModel`**:
+  the regexes used `(.*)$` without the `m` flag — `.` doesn't consume `\r` and
+  `$` (no `m`) won't match before `\r`, so on Windows-saved files the line
+  silently failed. `buildParsedModel` now splits with `/\r?\n/` so individual
+  line strings never carry trailing `\r`.
+
 ## [0.4.13] - 2026-05-03
 
 ### Fixed
