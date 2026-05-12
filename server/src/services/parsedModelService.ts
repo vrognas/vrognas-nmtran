@@ -14,7 +14,9 @@ import {
   ThetaDecl,
   OmegaSigmaDecl,
   Equation,
+  PriorDecl,
 } from '../parsedModel';
+import { extractPriors, type PriorEntry } from './priorScanner';
 import { evaluate, EvalContext } from './nmtranExpression';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
@@ -26,14 +28,19 @@ export function buildParsedModel(doc: TextDocument): ParsedModel {
   const lines = doc.getText().split(/\r?\n/);
   const locations = ParameterScanner.scanDocument(doc);
 
-  const thetas = locations.filter((l) => l.type === 'THETA').map((l) => buildTheta(l, lines));
-  const omegas = locations.filter((l) => l.type === 'ETA').map((l) => buildOmegaSigma(l, lines));
-  const sigmas = locations.filter((l) => l.type === 'EPS').map((l) => buildOmegaSigma(l, lines));
+  const thetaLocs = locations.filter((l) => l.type === 'THETA');
+  const omegaLocs = locations.filter((l) => l.type === 'ETA');
+  const sigmaLocs = locations.filter((l) => l.type === 'EPS');
+
+  const thetas = thetaLocs.map((l) => buildTheta(l, lines, locations));
+  const omegas = omegaLocs.map((l) => buildOmegaSigma(l, lines, locations));
+  const sigmas = sigmaLocs.map((l) => buildOmegaSigma(l, lines, locations));
 
   resolveSameInheritance(omegas, lines);
   resolveSameInheritance(sigmas, lines);
 
   const equations = extractEquations(lines, { thetas, omegas, sigmas });
+  const priors = extractPriors(doc.getText());
 
   return {
     dataFile: extractDataFile(lines),
@@ -42,7 +49,29 @@ export function buildParsedModel(doc: TextDocument): ParsedModel {
     omegas,
     sigmas,
     equations,
+    thetaPriors: priorMapToList(priors.thetaPriors),
+    thetaPriorVariances: priorMapToList(priors.thetaPriorVariances),
+    omegaPriors: priorMapToList(priors.omegaPriors),
+    omegaPriorDfs: priorMapToList(priors.omegaPriorDfs),
+    sigmaPriors: priorMapToList(priors.sigmaPriors),
+    sigmaPriorDfs: priorMapToList(priors.sigmaPriorDfs),
   };
+}
+
+/**
+ * Flatten the prior-scanner's `Map<index, PriorEntry>` into the
+ * wire-format `PriorDecl[]` sorted by index. Empty when no entries.
+ */
+function priorMapToList(m: Map<number, PriorEntry>): PriorDecl[] {
+  return [...m.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([index, e]) => ({
+      index,
+      value: e.value,
+      fix: e.fix,
+      line: e.line,
+      ...(e.comment !== undefined ? { comment: e.comment } : {}),
+    }));
 }
 
 /** First non-comment $DATA token, or null if no $DATA record. */
@@ -65,38 +94,87 @@ function extractInputColumns(lines: string[]): string[] {
   return [];
 }
 
-function buildTheta(loc: ParameterLocation, lines: string[]): ThetaDecl {
+function buildTheta(
+  loc: ParameterLocation,
+  lines: string[],
+  allLocations: ParameterLocation[],
+): ThetaDecl {
   const text = sliceLocation(loc, lines);
   const fix = hasFixRange(loc, lines);
   const line = loc.line;
+  const comment = extractInlineComment(loc, allLocations, lines);
+  const base = { index: loc.index, fix, line, ...(comment !== undefined ? { comment } : {}) };
   if (text.startsWith('(')) {
     const parts = splitBoundParts(text.slice(1, -1)).map((p) => p.trim());
     const nums = parts.map(parseFloatOrUndef);
     if (parts.length === 1) {
-      return { index: loc.index, init: nums[0]!, fix, line };
+      return { ...base, init: nums[0]! };
     }
     if (parts.length === 2) {
-      return { index: loc.index, init: nums[1]!, lower: nums[0]!, fix, line };
+      return { ...base, init: nums[1]!, lower: nums[0]! };
     }
     return {
-      index: loc.index,
+      ...base,
       init: nums[1] ?? NaN,
       lower: nums[0]!,
       upper: nums[2]!,
-      fix,
-      line,
     };
   }
-  return { index: loc.index, init: parseFloat(text), fix, line };
+  return { ...base, init: parseFloat(text) };
 }
 
-function buildOmegaSigma(loc: ParameterLocation, lines: string[]): OmegaSigmaDecl {
+function buildOmegaSigma(
+  loc: ParameterLocation,
+  lines: string[],
+  allLocations: ParameterLocation[],
+): OmegaSigmaDecl {
+  const comment = extractInlineComment(loc, allLocations, lines);
   return {
     index: loc.index,
     value: parseFloat(sliceLocation(loc, lines)),
     fix: hasFixRange(loc, lines),
     line: loc.line,
+    ...(comment !== undefined ? { comment } : {}),
   };
+}
+
+/**
+ * Extract the inline `;<comment>` text owned by this decl. Region is
+ * `line.slice(decl.endChar, <nextDeclStart-on-same-line> | EOL)`; the
+ * first `;` (not `;;`) inside that region opens the comment, which
+ * runs to the region's end.
+ *
+ * Pirana convention: `$THETA 1 ;CL` → "CL". Multi-line one-decl-per-
+ * line resolves cleanly. Multi-decl-per-line (`$THETA 1 2 3 ;all`)
+ * by NMTRAN spec puts the `;` past every decl — only the LAST decl on
+ * the line owns the region containing the `;`, so it gets the comment;
+ * earlier decls correctly resolve undefined.
+ *
+ * `;;` (PsN runrecord double-semi) excluded — those are $PROBLEM-block
+ * tags, not parameter labels.
+ */
+function extractInlineComment(
+  loc: ParameterLocation,
+  allLocations: ParameterLocation[],
+  lines: string[],
+): string | undefined {
+  if (loc.startChar === undefined || loc.endChar === undefined) return undefined;
+  const line = lines[loc.line] ?? '';
+  let nextStart = line.length;
+  for (const other of allLocations) {
+    if (other === loc) continue;
+    if (other.line !== loc.line) continue;
+    if (other.startChar === undefined) continue;
+    if (other.startChar > loc.endChar && other.startChar < nextStart) {
+      nextStart = other.startChar;
+    }
+  }
+  const region = line.slice(loc.endChar, nextStart);
+  const semi = region.indexOf(';');
+  if (semi === -1) return undefined;
+  if (region[semi + 1] === ';') return undefined;
+  const text = region.slice(semi + 1).trim();
+  return text || undefined;
 }
 
 /**

@@ -7,6 +7,41 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.23] - 2026-05-12
+
+### Added
+
+* **$PRIOR records surfaced in `ParsedModel`** — new fields
+  `thetaPriors`, `thetaPriorVariances`, `omegaPriors`, `omegaPriorDfs`,
+  `sigmaPriors`, `sigmaPriorDfs` (each `PriorDecl[]`, sorted by 1-based
+  parameter index). Empty arrays when the corresponding record is
+  absent (most models). New module `server/src/services/priorScanner.ts`
+  parses the six records — `$THETAP` / `$THETAPV` / `$OMEGAP` /
+  `$OMEGAPD` / `$SIGMAP` / `$SIGMAPD` — independently of the main
+  ParameterScanner so the prior parse is decoupled from the
+  cross-reference machinery.
+
+  Supported syntactic forms (per NM 7 docs + Gisleskog et al. 2002):
+  - Scalar / vector: `$THETAP 1.0 FIX ; A` and `$THETAP (2.0 FIX) (2.0 FIX) (2.0 FIX) (2.0 FIX)`.
+  - `BLOCK(N)` form for `$THETAPV` / `$OMEGAP` / `$SIGMAP` — lower-triangular
+    rows; we surface the diagonal element of each row.
+  - `BLOCK(N) SAME` advances the index counter so the matching `$OMEGAPD`
+    aligns correctly with the OMEGA index range.
+  - Multiple `$OMEGAPD` / `$SIGMAPD` scalars per record line — each
+    becomes its own block's degrees-of-freedom.
+
+  `$OMEGAPD` / `$SIGMAPD` scalars are expanded per-parameter so consumers
+  can look up `omegaPriorDfs[i]` for any OMEGA(i) directly without
+  re-deriving block boundaries. The Nth `$OMEGAPD` scalar applies to the
+  Nth `$OMEGAP` block in source order.
+
+  TNPRI form (normal-on-OMEGA via `$PRIOR TNPRI`) is NOT yet supported —
+  it requires an external MSF reference and is rare in practice
+  (Gisleskog et al. 2002, J Pharmacokinet Pharmacodyn).
+
+  10 tests covering scalar / BLOCK / SAME / multi-value-per-line /
+  $SIGMA forms + a 10-prior / 13-block real-world fixture.
+
 ## [0.4.22] - 2026-05-12
 
 ### Fixed

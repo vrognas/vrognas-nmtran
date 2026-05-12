@@ -20,6 +20,15 @@ export interface ThetaDecl {
   fix: boolean;
   /** 0-based line number of the declaration in the source. */
   line: number;
+  /**
+   * Inline `;<comment>` text following the decl on its source line, trimmed.
+   * Pirana-style label convention: `$THETA 1 ;CL` → comment="CL". Multi-decl
+   * lines: by NMTRAN spec a `;` runs to EOL, so only the LAST decl on a
+   * shared line will resolve a non-empty comment; earlier decls return
+   * undefined (their region between values has no `;`). Undefined when the
+   * line has no `;` after the value.
+   */
+  comment?: string;
 }
 
 export interface OmegaSigmaDecl {
@@ -31,6 +40,8 @@ export interface OmegaSigmaDecl {
   fix: boolean;
   /** 0-based line number of the declaration in the source. */
   line: number;
+  /** See `ThetaDecl.comment`. */
+  comment?: string;
 }
 
 /**
@@ -56,6 +67,28 @@ export interface Equation {
   value: number | undefined;
 }
 
+/**
+ * Prior-record entry (`$THETAP` / `$THETAPV` / `$OMEGAP` / `$OMEGAPD`
+ * / `$SIGMAP` / `$SIGMAPD`). Indexed per-kind 1-based to align with the
+ * matching `$THETA(i)` / `$OMEGA(i,i)` / `$SIGMA(i,i)` declarations.
+ * Surfaced by the consumer (positron-nonmem Fit Inspector) as P / PV /
+ * PD columns alongside the parameter tables.
+ *
+ * Available from vscode-nmtran ≥ 0.4.23.
+ */
+export interface PriorDecl {
+  /** 1-based parameter index this prior applies to. */
+  index: number;
+  /** Numeric value: mean (`*P`), variance (`*PV`), or degrees of freedom (`*PD`). */
+  value: number;
+  /** True when `FIX`/`FIXED` keyword applies. Per NM 7 docs `FIX` should be used for priors. */
+  fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
+  /** Inline `;<comment>` text. */
+  comment?: string;
+}
+
 export interface ParsedModel {
   /** First-token argument of $DATA, or null when no $DATA record is present. */
   dataFile: string | null;
@@ -65,6 +98,18 @@ export interface ParsedModel {
   omegas: OmegaSigmaDecl[];
   sigmas: OmegaSigmaDecl[];
   equations: Equation[];
+  /** $THETAP — prior MEANS for THETA (NWPRI normal prior). Empty when record absent. Available ≥ 0.4.23. */
+  thetaPriors: PriorDecl[];
+  /** $THETAPV — diagonal of the prior variance for $THETAP. Off-diagonals of BLOCK form are not surfaced. Empty when record absent. Available ≥ 0.4.23. */
+  thetaPriorVariances: PriorDecl[];
+  /** $OMEGAP — prior MODE for OMEGA (inverse-Wishart prior). Mirrors $OMEGA structure (scalar + BLOCK + SAME). Diagonals only. Available ≥ 0.4.23. */
+  omegaPriors: PriorDecl[];
+  /** $OMEGAPD — degrees of freedom for OMEGA prior, expanded per-parameter from the source's per-block scalars. Available ≥ 0.4.23. */
+  omegaPriorDfs: PriorDecl[];
+  /** $SIGMAP — analogous to $OMEGAP. Available ≥ 0.4.23. */
+  sigmaPriors: PriorDecl[];
+  /** $SIGMAPD — degrees of freedom for SIGMA prior. Available ≥ 0.4.23. */
+  sigmaPriorDfs: PriorDecl[];
 }
 
 /** LSP request method name; consumers should use this constant. */
