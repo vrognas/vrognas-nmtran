@@ -7,6 +7,48 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.22] - 2026-05-12
+
+### Fixed
+
+* **`parseModelFromText` cache collision**: `ParameterScanner.scanDocument`
+  keyed its cache on `${uri}:${version}`, but the `nmtran/parseModelText`
+  LSP handler hard-codes URI `embedded://lst` + version `1` for every
+  call. Distinct embedded contents therefore shared the same cache key
+  and the first-parsed result was served for every subsequent embedded
+  call — positron-nonmem's Fit Inspector would show stale parameter
+  counts (e.g. previously-opened `.lst` with 4 thetas / 4 omegas BLOCK
+  would stick when the user switched to a `.lst` with 7 thetas + 1
+  omega). Fix: skip the cache for synthetic `embedded://` URIs — they're
+  single-shot parses anyway and don't benefit from caching. Two new
+  regression tests pin both the cache-collision case and a smaller
+  scenario exercising commented-`; $THETA` interleaved with active
+  decls.
+
+## [0.4.21] - 2026-05-06
+
+### Added
+
+* **`parseModelFromText(text)` API** added to the `activate()` return
+  value (`NmtranApi`). Backed by a new `nmtran/parseModelText` LSP
+  request that runs `buildParsedModel` over a synthetic in-memory
+  document. Used by positron-nonmem to parse the embedded control
+  stream out of a `.lst` so the Fit Inspector reflects the model AS
+  RUN, not whatever the sibling `.mod` says now (the latter changes
+  when the modeler iterates after a run, leaking forward into the
+  inspector view of past runs).
+
+## [0.4.20] - 2026-05-05
+
+### Added
+
+* **Inline `;<comment>` extracted as a `comment` field** on each
+  `ThetaDecl` / `OmegaSigmaDecl` from the `nmtran/parsedModel` LSP
+  request. Pirana convention: `$THETA 4.79 ; CL` → `comment: "CL"`.
+  Multi-decl-per-line correctly assigns the comment only to the LAST
+  decl on the line (NMTRAN spec: `;` runs to EOL). PsN runrecord `;;`
+  excluded. Unblocks positron-nonmem's Fit Inspector parameter labels.
+
 ## [0.4.19] - 2026-05-03
 
 ### Fixed

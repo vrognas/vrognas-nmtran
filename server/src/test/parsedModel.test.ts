@@ -328,4 +328,180 @@ describe('buildParsedModel', () => {
     expect(byName.MX).toBe(8);
     expect(byName.AB).toBe(7);
   });
+
+  test('two bound pairs on one line: `$THETA (0, 0.1) (0, 10)` → THETA(1)=0.1, THETA(2)=10', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM bounds-pairs',
+          '$DATA d',
+          '$THETA (0, 0.1) (0, 10)',
+          '$OMEGA 0.1',
+          '$SIGMA 0.1',
+        ].join('\n'),
+      ),
+    );
+    expect(m.thetas).toEqual([
+      { index: 1, init: 0.1, lower: 0, fix: false, line: 2 },
+      { index: 2, init: 10, lower: 0, fix: false, line: 2 },
+    ]);
+  });
+
+  test('inline `;<comment>` becomes the decl `comment` field (Pirana-style label)', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM labels',
+          '$DATA d',
+          '$THETA',
+          '  4.79      ; CL',
+          '  90.2      ; V',
+          '  (0, 7.47) ; Q',
+          '  105       ; V2',
+          '$OMEGA',
+          '  0.397     ; IIV CL',
+          '  0.365     ; IIV V2',
+          '$SIGMA',
+          '  1450      ; PAdditive',
+          '  0.00739   ; Proportional',
+        ].join('\n'),
+      ),
+    );
+
+    expect(m.thetas.map((t) => t.comment)).toEqual(['CL', 'V', 'Q', 'V2']);
+    expect(m.omegas.map((o) => o.comment)).toEqual(['IIV CL', 'IIV V2']);
+    expect(m.sigmas.map((s) => s.comment)).toEqual(['PAdditive', 'Proportional']);
+  });
+
+  test('decl with no inline `;` leaves `comment` undefined', () => {
+    const m = buildParsedModel(
+      doc(['$PROBLEM no-comment', '$DATA d', '$THETA 1.5', '$OMEGA 0.1', '$SIGMA 0.1'].join('\n')),
+    );
+    expect(m.thetas[0].comment).toBeUndefined();
+    expect(m.omegas[0].comment).toBeUndefined();
+    expect(m.sigmas[0].comment).toBeUndefined();
+  });
+
+  test('PsN runrecord `;;` lines are NOT picked up as parameter comments', () => {
+    // The `;; Based on:` lives in $PROBLEM block, never as a parameter
+    // suffix. Even if a malformed file had `;;` next to a decl, exclude it.
+    const m = buildParsedModel(
+      doc(['$PROBLEM rr', ';; Based on: 1', '$DATA d', '$THETA 1.5 ;; not a label', '$OMEGA 0.1', '$SIGMA 0.1'].join('\n')),
+    );
+    expect(m.thetas[0].comment).toBeUndefined();
+  });
+
+  test('multi-decl single-line: comment goes to the LAST decl (NM-TRAN `;` runs to EOL)', () => {
+    // Per NM-TRAN spec a `;` consumes everything to EOL. With three values
+    // on one line and one trailing `;`, the comment region only intersects
+    // the last decl's range; earlier decls have no `;` between them and
+    // the next decl, so they correctly resolve undefined.
+    const m = buildParsedModel(
+      doc(['$PROBLEM multi', '$DATA d', '$THETA 1 2 3 ;all three', '$OMEGA 0.1', '$SIGMA 0.1'].join('\n')),
+    );
+    expect(m.thetas.map((t) => t.comment)).toEqual([undefined, undefined, 'all three']);
+  });
+
+  test('$OMEGA BLOCK(n): Pirana-style `; <label>` on each row attaches to the diagonal (i,i)', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM block-labels',
+          '$DATA d',
+          '$OMEGA BLOCK(4)',
+          '  0.1 ; A',
+          '  0.05 0.1 ; B',
+          '  0.05 0.05 0.1 ; C',
+          '  0.05 0.05 0.05 0.1 ; D',
+        ].join('\n'),
+      ),
+    );
+    expect(m.omegas.map((o) => ({ i: o.index, c: o.comment }))).toEqual([
+      { i: 1, c: 'A' },
+      { i: 2, c: 'B' },
+      { i: 3, c: 'C' },
+      { i: 4, c: 'D' },
+    ]);
+  });
+
+  // Reported via positron-nonmem 2026-05-12: in lst-mode, the Fit
+  // Inspector was showing the WRONG parameter counts for the active
+  // .lst — earlier files' counts were sticking. Root cause: the
+  // `embedded://lst` URI + version=1 hard-coded by the
+  // `nmtran/parseModelText` request handler collides in
+  // `ParameterScanner.scanDocument`'s `${uri}:${version}` cache,
+  // serving the first parse's locations for every subsequent embedded
+  // text. Skip the cache for synthetic URIs.
+  test('parseModelText path: distinct embedded contents return distinct decls (no cache collision)', () => {
+    // beforeEach clears the cache; both calls hit the embedded path.
+    const m1 = buildParsedModel(
+      TextDocument.create('embedded://lst', 'nmtran', 1, [
+        '$PROBLEM a',
+        '$DATA d',
+        '$THETA 1 ; A',
+        '$THETA 2 ; B',
+        '$OMEGA BLOCK(2) 0.1 0.05 0.2',
+        '$SIGMA 1',
+      ].join('\n')),
+    );
+    expect(m1.thetas.length).toBe(2);
+    expect(m1.omegas.length).toBe(2);
+
+    const m2 = buildParsedModel(
+      TextDocument.create('embedded://lst', 'nmtran', 1, [
+        '$PROBLEM b',
+        '$DATA d',
+        '$THETA 1 ; X',
+        '$THETA 2 ; Y',
+        '$THETA 3 ; Z',
+        '$OMEGA 0 FIX',
+      ].join('\n')),
+    );
+    // If the cache served m1's result, m2 would report 2 thetas. Real
+    // count is 3.
+    expect(m2.thetas.length).toBe(3);
+    expect(m2.omegas.length).toBe(1);
+    expect(m2.sigmas.length).toBe(0);
+  });
+
+  // Reported via positron-nonmem 2026-05-12: model has 7 active $THETA
+  // lines, 1 $OMEGA, 0 $SIGMA. parser returned thetas=4 / omegas=4 /
+  // sigmas=1. Commented `; $THETA (...)` lines between active decls
+  // appear to break state.
+  test('commented `; $THETA` between active $THETA lines does not stop further THETA counting', () => {
+    const m = buildParsedModel(
+      doc(
+        [
+          '$PROBLEM repro',
+          '$DATA d',
+          '$THETA  0.854 ; SHAPE',
+          '$THETA  -2.145 ; SCALE',
+          '$THETA  -1.315 ; SCALE_gamma',
+          '$THETA  0.218 ; SOFA',
+          '$THETA  0.021 ; AGE',
+          '; $THETA  (-2.905) ; Loss',
+          '; $THETA (0.115) ; charlson_total',
+          '; $THETA (-0.511)    ;diuretics',
+          '$THETA  -0.72 ; klebsiella_other vs acinetobacter_psudomonas',
+          '; $THETA  (0.01) ; log(mic_colistin)',
+          '; $THETA  (0.662) ; Failure',
+          '$THETA  0.066 ; cavg_micc_120',
+          '$OMEGA  0  FIX  ;   ETA_BASE',
+        ].join('\n'),
+      ),
+    );
+    expect(m.thetas.length).toBe(7);
+    expect(m.thetas.map((t) => t.comment)).toEqual([
+      'SHAPE',
+      'SCALE',
+      'SCALE_gamma',
+      'SOFA',
+      'AGE',
+      'klebsiella_other vs acinetobacter_psudomonas',
+      'cavg_micc_120',
+    ]);
+    expect(m.omegas.length).toBe(1);
+    expect(m.omegas[0]).toMatchObject({ index: 1, value: 0, fix: true, comment: 'ETA_BASE' });
+    expect(m.sigmas.length).toBe(0);
+  });
 });
