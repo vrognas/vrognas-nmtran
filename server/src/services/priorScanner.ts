@@ -52,17 +52,17 @@ const SAME_RE = /\bSAME\b/i;
 const FIX_RE = /\b(FIX|FIXED)\b/i;
 const NUMERIC_TOKEN_RE = /[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?/g;
 
+const KIND_BY_KEYWORD: Record<string, Kind> = {
+  THETAP: 'thetaP',
+  THETAPV: 'thetaPV',
+  OMEGAP: 'omegaP',
+  OMEGAPD: 'omegaPD',
+  SIGMAP: 'sigmaP',
+  SIGMAPD: 'sigmaPD',
+};
+
 function kindForKeyword(kw: string): Kind | null {
-  const up = kw.toUpperCase();
-  // Match longest first — $THETAPV / $OMEGAPD before $THETAP / $OMEGAP.
-  if (up === 'THETAPV' || up === 'THP') return up === 'THETAPV' ? 'thetaPV' : null;
-  if (up === 'THETAPV') return 'thetaPV';
-  if (up === 'THETAP') return 'thetaP';
-  if (up === 'OMEGAPD') return 'omegaPD';
-  if (up === 'OMEGAP') return 'omegaP';
-  if (up === 'SIGMAPD') return 'sigmaPD';
-  if (up === 'SIGMAP') return 'sigmaP';
-  return null;
+  return KIND_BY_KEYWORD[kw.toUpperCase()] ?? null;
 }
 
 /**
@@ -79,8 +79,6 @@ interface KindState {
   blockRow: number;
   /** FIX flag inherited from the BLOCK header line. */
   blockFix: boolean;
-  /** Line number of the BLOCK header (for diagnostics). */
-  blockHeaderLine: number;
 }
 
 /** Records the block-membership of each parameter for *P kinds — needed to map *PD scalars to per-parameter dfs. */
@@ -110,12 +108,12 @@ export function extractPriors(text: string): ParsedPriors {
   // are scalar-per-block; we record them in insertion order and align
   // to *P blocks at the end.
   const stateByKind: Record<Kind, KindState> = {
-    thetaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
-    thetaPV: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
-    omegaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
-    sigmaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
-    omegaPD: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
-    sigmaPD: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false, blockHeaderLine: -1 },
+    thetaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
+    thetaPV: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
+    omegaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
+    sigmaP: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
+    omegaPD: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
+    sigmaPD: { nextIdx: 1, blockRemaining: 0, blockRow: 0, blockFix: false },
   };
   // Collected $OMEGAPD / $SIGMAPD scalars in source order; expanded to
   // per-parameter dfs after the walk.
@@ -145,7 +143,6 @@ export function extractPriors(text: string): ParsedPriors {
       st.blockRemaining = 0;
       st.blockRow = 0;
       st.blockFix = isFix;
-      st.blockHeaderLine = lineNum;
 
       // Record block membership for *P kinds (used to expand *PD scalars).
       const blockSize = isBlock && blockMatch ? parseInt(blockMatch[1] ?? '1', 10) : 1;
@@ -272,16 +269,12 @@ function consumeBlockRow(
   if (nums.length === 0) return;
   // BLOCK row K has K lower-triangular values; the diagonal is the K-th.
   const diagIdx = st.blockRow - 1;
-  if (diagIdx >= nums.length) {
-    st.blockRemaining = Math.max(0, st.blockRemaining - 1);
-    return;
-  }
   const diagonal = nums[diagIdx];
   if (diagonal === undefined) {
     st.blockRemaining = Math.max(0, st.blockRemaining - 1);
     return;
   }
-  const comment = extractCommentRaw(rawLine);
+  const comment = extractComment(rawLine);
   const entry: PriorEntry = {
     value: diagonal,
     fix: st.blockFix,
@@ -320,17 +313,12 @@ function parseNumbers(text: string): number[] {
 }
 
 function extractComment(rawLine: string): string | undefined {
-  const code = stripComment(rawLine);
-  const semi = rawLine.indexOf(';', code.length);
+  const semi = rawLine.indexOf(';');
   if (semi === -1) return undefined;
   // Skip `;;` (PsN runrecord) — these don't label decls.
   if (rawLine[semi + 1] === ';') return undefined;
   const t = rawLine.slice(semi + 1).trim();
   return t.length > 0 ? t : undefined;
-}
-
-function extractCommentRaw(rawLine: string): string | undefined {
-  return extractComment(rawLine);
 }
 
 function stripComment(line: string): string {
