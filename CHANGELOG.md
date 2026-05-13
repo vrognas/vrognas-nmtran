@@ -7,6 +7,40 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.24] - 2026-05-13
+
+### Added
+
+* **`$PRIOR` fields exposed on client API**: `NmtranPriorDecl` interface
+  and `thetaPriors`, `thetaPriorVariances`, `omegaPriors`, `omegaPriorDfs`,
+  `sigmaPriors`, `sigmaPriorDfs` arrays added to `NmtranParsedModel` in
+  `client/src/parsedModelApi.ts`. The server has been returning these
+  since 0.4.23, but the client-side TypeScript type was stale so typed
+  consumers couldn't see them.
+
+### Changed
+
+* **`nmtran/parseModelText` handler now generates unique URIs per call**
+  (`embedded://lst/<counter>` instead of a fixed `embedded://lst`). This
+  removes the 0.4.22 workaround in `ParameterScanner.scanDocument` that
+  bypassed the cache for synthetic URIs — the scanner is back to
+  unconditional caching keyed on `${uri}:${version}`. Cross-service
+  coupling via URI-prefix convention is gone; the existing regression
+  test was updated to match the new contract (distinct URIs per call).
+* **`PARSE_MODEL_TEXT_REQUEST` constant** added next to
+  `PARSED_MODEL_REQUEST` in `server/src/parsedModel.ts`; server handler
+  uses the constant.
+
+### Fixed
+
+* **TypeScript strict-mode errors in `priorScanner.ts`** introduced in
+  0.4.23 — `tsc -b` failed under `noUncheckedIndexedAccess`. All array
+  index accesses now guarded; behavior unchanged (337 server tests still
+  green).
+* **`parseModelFromText` JSDoc**: corrected misleading "currently always
+  returns a non-null object" — the server handler's `try/catch` returns
+  null on parse exceptions, so the null path is real.
+
 ## [0.4.23] - 2026-05-12
 
 ### Added
