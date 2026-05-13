@@ -7,6 +7,38 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.27] - 2026-05-13
+
+### Changed
+
+Tier-2 consolidations: duplicated text helpers and parallel regex math
+collapsed to a single source of truth each.
+
+* **`stripComment` shared helper** — three identical local copies
+  (priorScanner / parsedModelService / definitionService) plus 17+
+  inline `line.indexOf(';') / .substring(0, idx)` patterns across
+  ParameterScanner, definitionService, and validateControlRecords now
+  delegate to `server/src/utils/text.ts`. The two `indexOf(';')` sites
+  that survive use the index as a *position* (offset-tracking
+  boundary), not for stripping.
+* **`stripRecordPrefix` / `stripBlockPrefix` shared helpers** — four
+  call sites that peeled the `$RECORD` / `BLOCK(n)` prefix now
+  compose from `utils/text.ts` instead of inlining the regexes. The
+  position-tracking variants (those that need the match info) stay
+  inline.
+* **Dead PARAMETER_PATTERNS constants removed** —
+  `CONTROL_RECORD`, `COMMENT`, `COMMENT_END`, `COMMENT_START`,
+  `BLOCK_INLINE`, `OMEGA_BLOCK_PREFIX`, `SIGMA_BLOCK_PREFIX`,
+  `BLOCK_PREFIX` were defined but no longer reached after the strip
+  sweep.
+* **Diagonal-position math** — `ParameterScanner.isBlockDiagonalPosition`
+  (1-indexed boolean) was a parallel impl of
+  `NMTRANMatrixParser.isDiagonalElement` (0-indexed `number | null`).
+  Same triangular-number relationship, two implementations. Collapsed
+  to one via delegation. priorScanner's stateful `blockRow` counter
+  is a different concern (row-stream rather than random-access) and
+  stays.
+
 ## [0.4.26] - 2026-05-13
 
 ### Removed
