@@ -10,14 +10,14 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { explainControlRecordHover } from '../hoverInfo';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
 import { ParameterScanner, ParameterLocation } from './ParameterScanner';
-import { reservedDiagnosticItems } from '../constants';
+import { reservedDiagnosticItems, reservedVariables } from '../constants';
 import { resolveErrBinding } from '../utils/errBinding';
+import { createParameterReferenceRegex } from '../utils/patterns';
+
+const CONTROL_RECORD_RE = /\$[A-Z]+\b/g;
 
 export class HoverService {
   private connection: Connection;
-
-  private createControlRecordRegex() { return /\$[A-Z]+\b/g; }
-  private createParameterUsageRegex() { return /\b(THETA|ETA|EPS|ERR)\((\d+)\)/gi; }
 
   constructor(connection: Connection) {
     this.connection = connection;
@@ -60,7 +60,7 @@ export class HoverService {
     lines: string[]
   ): Hover | null {
     const text = document.getText();
-    const paramRegex = this.createParameterUsageRegex();
+    const paramRegex = createParameterReferenceRegex();
     let match: RegExpExecArray | null;
 
     while ((match = paramRegex.exec(text)) !== null) {
@@ -105,7 +105,7 @@ export class HoverService {
    * Get hover information for control records
    */
   private getControlRecordHover(text: string, offset: number, document: TextDocument): Hover | null {
-    const controlRegex = this.createControlRecordRegex();
+    const controlRegex = new RegExp(CONTROL_RECORD_RE.source, 'g');
     let match: RegExpExecArray | null;
 
     while ((match = controlRegex.exec(text)) !== null) {
@@ -268,42 +268,20 @@ export class HoverService {
   }
 
   /**
-   * Get hover information for reserved variables like ICALL, NEWIND, Y
+   * Get hover information for reserved variables like ICALL, NEWIND, Y.
+   * Looks up the word under the cursor in the shared `reservedVariables` map.
    */
   private getReservedVariableHover(text: string, offset: number): Hover | null {
-    // Check for reserved variables at the cursor position
-    const reservedVariables = {
-      'ICALL': 'Reserved variable - Execution context: 0=run init, 1=problem init, 2=analysis, 3=finalization, 4=simulation, 5=expectation, 6=data average',
-      'NEWIND': 'Reserved variable - Individual record indicator: 0=first record, 1=new individual, 2=continuation record',
-      'Y': 'Mandatory left-hand quantity for PRED - represents the predicted value or observation under the statistical model',
-      'ERR': 'Reserved array - Alternative to ETA(n)/EPS(n) for random intra-individual effects'
-    };
+    const wordStart = this.findWordStart(text, offset);
+    const wordEnd = this.findWordEnd(text, offset);
+    if (wordStart === wordEnd) return null;
 
-    // Find word boundaries around the offset
-    const beforeOffset = Math.max(0, offset - 10);
-    const afterOffset = Math.min(text.length, offset + 10);
-    const searchText = text.substring(beforeOffset, afterOffset);
+    const word = text.substring(wordStart, wordEnd).toUpperCase();
+    const description = reservedVariables[word];
+    if (!description) return null;
 
-    for (const [variable, description] of Object.entries(reservedVariables)) {
-      const regex = new RegExp(`\\b${variable}\\b`, 'i');
-      const match = regex.exec(searchText);
-
-      if (match) {
-        const matchStart = beforeOffset + match.index;
-        const matchEnd = matchStart + match[0].length;
-
-        // Check if the cursor is within the match
-        if (offset >= matchStart && offset <= matchEnd) {
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: description
-            } as MarkupContent
-          } as Hover;
-        }
-      }
-    }
-
-    return null;
+    return {
+      contents: { kind: MarkupKind.Markdown, value: description } as MarkupContent,
+    } as Hover;
   }
 }

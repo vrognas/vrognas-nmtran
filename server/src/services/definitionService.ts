@@ -26,9 +26,6 @@ const PARAMETER_PATTERNS = {
   SAME: SAME_RE,
 } as const;
 
-// Factory function to create fresh regex instances to avoid state contamination
-const createParameterUsageRegex = createParameterReferenceRegex;
-
 /** NONMEM array names handled by the parameter (THETA/ETA/EPS) path; user-variable lookup skips these. */
 const NONMEM_INDEXED_ARRAYS = new Set(['THETA', 'ETA', 'EPS', 'ERR', 'OMEGA', 'SIGMA']);
 
@@ -169,9 +166,9 @@ export class DefinitionService {
       end: { line: position.line, character: Number.MAX_VALUE }
     });
 
-    // First, try to match THETA(1), ETA(2), EPS(3) patterns - numeric indices only
-    // Create fresh RegExp instance to avoid shared state issues with global flag
-    const parameterRegex = createParameterUsageRegex();
+    // First, try to match THETA(1), ETA(2), EPS(3) patterns - numeric indices only.
+    // Create fresh RegExp instance to avoid /g `lastIndex` contamination.
+    const parameterRegex = createParameterReferenceRegex();
     let match: RegExpExecArray | null;
 
     while ((match = parameterRegex.exec(line)) !== null) {
@@ -734,7 +731,7 @@ export class DefinitionService {
         if (i === lineNum) {
           // This is our target line - determine which specific parameter based on cursor position
           if (cursorChar !== undefined) {
-            const parameterIndex = this.getParameterIndexFromCursorPosition(document, lineNum, cursorChar, parameterType, parameterCount);
+            const parameterIndex = this.getParameterIndexFromCursorPosition(document, lineNum, cursorChar, parameterType);
             if (parameterIndex !== null) {
               return {
                 type: parameterType,
@@ -760,7 +757,7 @@ export class DefinitionService {
   /**
    * Determine which parameter index the cursor is positioned on based on parameter locations
    */
-  private getParameterIndexFromCursorPosition(document: TextDocument, lineNum: number, cursorChar: number, parameterType: string, _baseParameterCount: number): number | null {
+  private getParameterIndexFromCursorPosition(document: TextDocument, lineNum: number, cursorChar: number, parameterType: string): number | null {
     // Get all scanned parameters for this line
     const allParams = this.scanAllParameters(document);
     const paramsOnLine = allParams.filter(param => 
@@ -1103,8 +1100,7 @@ export class DefinitionService {
     const wordRe = new RegExp(`\\b${escapeRegex(name)}\\b`, 'gi');
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const raw = lines[lineNum] ?? '';
-      const commentIdx = raw.indexOf(';');
-      const codeEnd = commentIdx === -1 ? raw.length : commentIdx;
+      const codeEnd = stripComment(raw).length;
       for (const match of raw.matchAll(wordRe)) {
         const idx = match.index ?? 0;
         if (idx >= codeEnd) break;

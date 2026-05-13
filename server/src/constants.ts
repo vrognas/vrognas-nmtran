@@ -95,15 +95,15 @@ export const ABBREVIATED_CODE_BLOCKS = new Set([
  *
  * Special variables with predefined meanings in NMTRAN abbreviated code.
  */
-export const reservedVariables = [
-  'ICALL',    // Execution context indicator
-  'NEWIND',   // Individual record indicator  
-  'Y',        // Mandatory left-hand quantity for PRED
-  'ERR',      // Alternative to ETA/EPS arrays
-  'BAYES_EXTRA_REQUEST', // Bayes extra request indicator (NONMEM 7.6.0+)
-  'BAYES_EXTRA',         // Bayes extra information (NONMEM 7.6.0+)
-  'ITER_REPORT'          // Iteration reporting indicator (NONMEM 7.6.0+)
-];
+export const reservedVariables: Record<string, string> = {
+  'ICALL': 'Reserved variable — execution context: 0=run init, 1=problem init, 2=analysis, 3=finalization, 4=simulation, 5=expectation, 6=data average',
+  'NEWIND': 'Reserved variable — individual record indicator: 0=first record, 1=new individual, 2=continuation record',
+  'Y': 'Mandatory left-hand quantity for $PRED — the predicted value or observation under the statistical model',
+  'ERR': 'Reserved array — alternative to ETA(n)/EPS(n) for random intra-individual effects',
+  'BAYES_EXTRA_REQUEST': 'Bayes extra request indicator (NONMEM ≥ 7.6.0)',
+  'BAYES_EXTRA': 'Bayes extra information output (NONMEM ≥ 7.6.0)',
+  'ITER_REPORT': 'Iteration reporting indicator (NONMEM ≥ 7.6.0)',
+};
 
 /**
  * NMTRAN Reserved Diagnostic Items
