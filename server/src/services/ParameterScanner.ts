@@ -154,47 +154,37 @@ export class ParameterScanner {
    * Update scanner state based on control record
    */
   private static updateStateForControlRecord(trimmed: string, state: ScannerState, lineNum: number): void {
-    // Remove inline comments before checking control records
     const lineWithoutComment = stripComment(trimmed).trim();
-    
+
     if (PARAMETER_PATTERNS.THETA.test(lineWithoutComment)) {
       state.currentBlockType = 'THETA';
       state.inBlockMatrix = false;
       state.blockMatrixRemaining = 0;
-    } else if (PARAMETER_PATTERNS.OMEGA.test(lineWithoutComment)) {
-      state.currentBlockType = 'ETA';
+      return;
+    }
+
+    // OMEGA / SIGMA share identical block-state setup; the only difference
+    // is which parameter-array index counter they advance (ETA vs EPS).
+    const isOmega = PARAMETER_PATTERNS.OMEGA.test(lineWithoutComment);
+    const isSigma = !isOmega && PARAMETER_PATTERNS.SIGMA.test(lineWithoutComment);
+    if (isOmega || isSigma) {
+      state.currentBlockType = isOmega ? 'ETA' : 'EPS';
       const matrixState = this.detectBlockMatrix(lineWithoutComment);
       state.inBlockMatrix = matrixState.inBlockMatrix;
       state.blockMatrixRemaining = matrixState.blockMatrixRemaining;
-      // Extract block size from BLOCK(n)
       const blockMatch = lineWithoutComment.match(PARAMETER_PATTERNS.BLOCK);
       state.blockMatrixSize = blockMatch && blockMatch[1] ? parseInt(blockMatch[1], 10) : 0;
-      state.blockElementsSeen = 0;  // Reset element counter for new block
-      state.blockDiagonalsSeen = 0; // Reset diagonal counter for new block
-      state.blockFixedKeywords = []; // Reset FIXED keywords for new block
-      
-      // Check for FIXED keywords on the BLOCK declaration line
+      state.blockElementsSeen = 0;
+      state.blockDiagonalsSeen = 0;
+      state.blockFixedKeywords = [];
       if (state.inBlockMatrix) {
         this.detectBlockFixedKeywords(lineWithoutComment, lineNum, state);
       }
-    } else if (PARAMETER_PATTERNS.SIGMA.test(lineWithoutComment)) {
-      state.currentBlockType = 'EPS';
-      const matrixState = this.detectBlockMatrix(lineWithoutComment);
-      state.inBlockMatrix = matrixState.inBlockMatrix;
-      state.blockMatrixRemaining = matrixState.blockMatrixRemaining;
-      // Extract block size from BLOCK(n)
-      const blockMatch = lineWithoutComment.match(PARAMETER_PATTERNS.BLOCK);
-      state.blockMatrixSize = blockMatch && blockMatch[1] ? parseInt(blockMatch[1], 10) : 0;
-      state.blockElementsSeen = 0;  // Reset element counter for new block
-      state.blockDiagonalsSeen = 0; // Reset diagonal counter for new block
-      state.blockFixedKeywords = []; // Reset FIXED keywords for new block
-      
-      // Check for FIXED keywords on the BLOCK declaration line
-      if (state.inBlockMatrix) {
-        this.detectBlockFixedKeywords(lineWithoutComment, lineNum, state);
-      }
-    } else if (lineWithoutComment.startsWith('$')) {
-      // Different control record - reset state
+      return;
+    }
+
+    if (lineWithoutComment.startsWith('$')) {
+      // Any other control record — leave the THETA/ETA/EPS context.
       state.currentBlockType = null;
       state.inBlockMatrix = false;
       state.blockMatrixRemaining = 0;
