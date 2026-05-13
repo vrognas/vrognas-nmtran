@@ -7,6 +7,44 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.26] - 2026-05-13
+
+### Removed
+
+Dead-code sweep of the utility / factory layer. ~1550 LOC of source and
+tests removed; remaining 260 server tests still green (down from 337
+— the 77 dropped tests all targeted code that had no production
+callers).
+
+* **`server/src/parsers/parameterParser.ts`** — abandoned earlier-attempt
+  parser, zero callers. File + `parsers/` directory removed.
+* **`server/src/utils/parameterParser.ts`** (`ParameterParserFactory`) —
+  parallel-universe parser, imported only by its own test file. 7
+  static methods removed along with 144 LOC of tests.
+* **`NMTRANMatrixParser`** trimmed to the two methods actually called
+  from production code (`getDiagonalPosition`,
+  `isDiagonalElement`). The 6 dead methods (`parseBlockValues`,
+  `extractDiagonalElements`, `getTriangularMatrixSize`,
+  `parseMatrixBlock`, `validateBlockMatrix`, `getMatrixCoordinates`)
+  and the `MatrixElement` / `DiagonalPosition` interfaces are gone.
+* **`ParameterValidator`** — `validateParameterLine` flagged "invalid
+  characters" for `_`, `*`, `/`, `=`, `&` etc., which appear in
+  essentially every realistic NMTRAN file; warnings went to the LSP
+  console without blocking processing. `validateScannerState` checked
+  invariants the calling code already guarantees. `validateNumericValue`
+  had no callers. Both calls in `scanDocument`'s hot loop removed.
+* **`ParameterFactory`** — `createLocation` and `resetBlockState` had
+  no callers; `createScannerState` was inlined as a module-private
+  function in `ParameterScanner.ts`. `factories/` directory removed.
+* **`ErrorHandler`** — once `ParameterValidator` was gone, all callers
+  were gone too. Speculative API (`logError`, `logDebug`,
+  `handleException`, `createSafeResult`, `createSafeAsyncResult`,
+  `wrap`, both static and instance variants) deleted.
+* **`utils/validation.ts`** — four exported helpers
+  (`isValidLineNumber`, `isValidCharPosition`, `isValidParameterIndex`,
+  `sanitizeFilePath`) with no callers and an explicit coverage exclude
+  hiding the fact.
+
 ## [0.4.25] - 2026-05-13
 
 ### Changed
