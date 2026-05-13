@@ -7,6 +7,24 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.25] - 2026-05-13
+
+### Changed
+
+* **`priorScanner.ts` cleanup** (pure refactor): replaced
+  `kindForKeyword`'s unreachable chained-if dispatch with a lookup-table;
+  dropped `extractCommentRaw` (1:1 wrapper for `extractComment`);
+  removed the redundant `stripComment` call in `extractComment`; dropped
+  the unused `KindState.blockHeaderLine` field; merged
+  `consumeBlockRow`'s bounds check and `noUncheckedIndexedAccess` guard
+  into one. No behavior change; 337 server tests still green.
+* **LSP method-name constants** (`PARSED_MODEL_REQUEST`,
+  `PARSE_MODEL_TEXT_REQUEST`) now exported from
+  `client/src/parsedModelApi.ts` and used by `LanguageServerManager`.
+  Eliminates magic-string drift within the client; the client and
+  server still maintain parallel constants (no shared package yet) so
+  cross-side drift must continue to be policed manually.
+
 ## [0.4.24] - 2026-05-13
 
 ### Added
