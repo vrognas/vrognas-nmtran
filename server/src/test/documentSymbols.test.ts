@@ -1,4 +1,4 @@
-import { buildDocumentSymbols } from '../utils/validateControlRecords';
+import { buildDocumentSymbols } from '../services/documentSymbols';
 import { SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ParameterScanner } from '../services/ParameterScanner';

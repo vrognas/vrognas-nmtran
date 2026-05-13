@@ -5,7 +5,7 @@
  * ensuring proper placement and usage according to NMTRAN rules
  */
 
-import { validateContinuationMarkers } from '../utils/validateControlRecords';
+import { validateContinuationMarkers } from '../validators/continuationMarkers';
 import { createDocument } from './test-helpers';
 
 describe('Continuation Marker Validation', () => {

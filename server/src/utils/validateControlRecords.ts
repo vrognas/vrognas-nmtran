@@ -1,6 +1,5 @@
-import { Diagnostic, DiagnosticSeverity, DocumentSymbol, SymbolKind, TextDocument } from 'vscode-languageserver/node';
+import { Diagnostic, DiagnosticSeverity, TextDocument } from 'vscode-languageserver/node';
 import { allowedControlRecords } from '../constants';
-import type { ParameterLocation } from '../services/ParameterScanner';
 import { stripComment } from './text';
 
 /**
@@ -126,83 +125,10 @@ function generateDiagnosticForControlRecord(match: RegExpExecArray, textDocument
 }
 
 /**
- * Validates continuation marker (&) usage in NMTRAN files.
- * 
- * Why:
- * NMTRAN uses FORTRAN-style continuation markers which have specific rules:
- * - & must appear at the end of lines (after content, before comments)
- * - Continuation lines should be properly structured
- * - No orphaned & markers
- */
-function validateContinuationMarkers(document: TextDocument): { 
-  isValid: boolean; 
-  errors: Array<{ message: string; line: number; startChar: number; endChar: number }> 
-} {
-  const errors: Array<{ message: string; line: number; startChar: number; endChar: number }> = [];
-  const lines = document.getText().split('\n');
-  
-  for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-    const line = lines[lineNum];
-    if (!line) continue;
-
-    // Find the position of the first semicolon (start of comment)
-    // Any ampersand after this position should be ignored
-    const commentStart = line.indexOf(';');
-
-    // Skip lines that are entirely comments
-    if (line.trim().startsWith(';')) continue;
-
-    // Find all & characters in the line (before any comment)
-    for (let charPos = 0; charPos < line.length; charPos++) {
-      // Skip ampersands that appear within comments
-      if (commentStart !== -1 && charPos >= commentStart) break;
-
-      if (line.charAt(charPos) === '&') {
-        // Check if & is at the end of the line (ignoring trailing whitespace and comments)
-        const afterAmpersand = line.substring(charPos + 1);
-        const isAtLineEnd = /^\s*(;.*)?$/.test(afterAmpersand);
-        
-        if (!isAtLineEnd) {
-          // & is not at the end of line - this is invalid
-          errors.push({
-            message: 'Continuation marker (&) must appear at the end of the line',
-            line: lineNum,
-            startChar: charPos,
-            endChar: charPos + 1
-          });
-        } else {
-          // Valid & at end of line - check if there's a continuation line
-          if (lineNum === lines.length - 1) {
-            // & at end of last line - orphaned continuation marker
-            errors.push({
-              message: 'Orphaned continuation marker (&) at end of file',
-              line: lineNum,
-              startChar: charPos,
-              endChar: charPos + 1
-            });
-          } else {
-            // Check if next line exists and is not empty/comment-only
-            const nextLine = lines[lineNum + 1];
-            if (!nextLine || nextLine.trim() === '' || nextLine.trim().startsWith(';')) {
-              errors.push({
-                message: 'Continuation marker (&) not followed by continuation content',
-                line: lineNum,
-                startChar: charPos,
-                endChar: charPos + 1
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-  
-  return { isValid: errors.length === 0, errors };
-}
-
-/**
  * Extracts a detail snippet from content after a control record keyword.
- * Strips trailing comments and truncates long content.
+ * Strips trailing comments and truncates long content. Exported for
+ * consumption by the document-outline builder in
+ * `services/documentSymbols.ts`.
  */
 function extractControlRecordDetail(restOfLine: string): string {
   let detail = stripComment(restOfLine).trim();
@@ -213,115 +139,9 @@ function extractControlRecordDetail(restOfLine: string): string {
   return detail;
 }
 
-const PARAM_TYPE_MAP: Record<string, ParameterLocation['type']> = {
-  '$THETA': 'THETA',
-  '$OMEGA': 'ETA',
-  '$SIGMA': 'EPS',
-};
-
-/**
- * Builds DocumentSymbol array for the outline view.
- * Each control record becomes a symbol with full-block range and detail text.
- * When parameterLocations provided, nests parameter children under $THETA/$OMEGA/$SIGMA.
- */
-function buildDocumentSymbols(doc: TextDocument, parameterLocations?: ParameterLocation[]): DocumentSymbol[] {
-  const text = doc.getText();
-  const matches = locateControlRecordsInText(text);
-  const symbols: DocumentSymbol[] = [];
-
-  for (let i = 0; i < matches.length; i++) {
-    const match = matches[i]!;
-    const fullName = getFullControlRecordName(match[0]);
-
-    // selectionRange: just the $KEYWORD
-    const selectionStart = doc.positionAt(match.index);
-    const selectionEnd = doc.positionAt(match.index + match[0].length);
-
-    // range: from $KEYWORD line to line before next $KEYWORD (or EOF)
-    const rangeStart = { line: selectionStart.line, character: 0 };
-    let rangeEnd;
-    const nextMatch = matches[i + 1];
-    if (nextMatch) {
-      const nextLine = doc.positionAt(nextMatch.index).line;
-      const endLine = Math.max(nextLine - 1, rangeStart.line);
-      const endLineStart = doc.offsetAt({ line: endLine, character: 0 });
-      const nextNewline = text.indexOf('\n', endLineStart);
-      let endLineLength = nextNewline === -1
-        ? text.length - endLineStart
-        : nextNewline - endLineStart;
-      if (endLineLength > 0 && text[endLineStart + endLineLength - 1] === '\r') {
-        endLineLength--;
-      }
-      rangeEnd = { line: endLine, character: endLineLength };
-    } else {
-      rangeEnd = doc.positionAt(text.length);
-    }
-
-    // detail: rest of the keyword's line
-    const lineEnd = text.indexOf('\n', match.index);
-    const restOfLineRaw = lineEnd === -1
-      ? text.slice(match.index + match[0].length)
-      : text.slice(match.index + match[0].length, lineEnd);
-    const restOfLine = restOfLineRaw.replace(/\r$/, '');
-    const detail = extractControlRecordDetail(restOfLine);
-
-    const symbol = DocumentSymbol.create(
-      fullName,
-      detail || undefined,
-      SymbolKind.Module,
-      { start: rangeStart, end: rangeEnd },
-      { start: selectionStart, end: selectionEnd }
-    );
-
-    // Add parameter children for $THETA, $OMEGA, $SIGMA
-    const expectedType = parameterLocations ? PARAM_TYPE_MAP[fullName] : undefined;
-    if (expectedType && parameterLocations) {
-      const children: DocumentSymbol[] = [];
-      for (const loc of parameterLocations) {
-        if (loc.type !== expectedType) continue;
-        if (loc.line < rangeStart.line || loc.line > rangeEnd.line) continue;
-
-        const childName = `${loc.type}(${loc.index})`;
-
-        // Extract inline comment as detail
-        const paramLineStart = doc.offsetAt({ line: loc.line, character: 0 });
-        const paramLineEnd = text.indexOf('\n', paramLineStart);
-        const paramLineRaw = paramLineEnd === -1
-          ? text.slice(paramLineStart)
-          : text.slice(paramLineStart, paramLineEnd);
-        const paramLine = paramLineRaw.replace(/\r$/, '');
-        const commentMatch = paramLine.match(/;(.+)/);
-        const childDetail = commentMatch?.[1]?.trim() || undefined;
-
-        // Range: full line; selectionRange: the numeric value
-        const childRangeStart = { line: loc.line, character: 0 };
-        const childRangeEnd = { line: loc.line, character: paramLine.length };
-        const childSelStart = { line: loc.line, character: loc.startChar ?? 0 };
-        const childSelEnd = { line: loc.line, character: loc.endChar ?? paramLine.length };
-
-        children.push(DocumentSymbol.create(
-          childName,
-          childDetail,
-          SymbolKind.Variable,
-          { start: childRangeStart, end: childRangeEnd },
-          { start: childSelStart, end: childSelEnd }
-        ));
-      }
-      if (children.length > 0) {
-        symbol.children = children;
-      }
-    }
-
-    symbols.push(symbol);
-  }
-
-  return symbols;
-}
-
 export {
   locateControlRecordsInText,
   generateDiagnosticForControlRecord,
   getFullControlRecordName,
-  validateContinuationMarkers,
-  buildDocumentSymbols
+  extractControlRecordDetail,
 };

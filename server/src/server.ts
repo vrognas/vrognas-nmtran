@@ -39,7 +39,7 @@ import { buildParsedModel } from './services/parsedModelService';
 // Import types and utilities
 import { DEFAULT_SETTINGS, NMTRANSettings } from './types';
 import { PARSED_MODEL_REQUEST, PARSE_MODEL_TEXT_REQUEST } from './parsedModel';
-import { buildDocumentSymbols } from './utils/validateControlRecords';
+import { buildDocumentSymbols } from './services/documentSymbols';
 
 // =================================================================
 // SERVER SETUP

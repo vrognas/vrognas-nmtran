@@ -13,7 +13,6 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import {
   locateControlRecordsInText,
   generateDiagnosticForControlRecord,
-  validateContinuationMarkers
 } from '../utils/validateControlRecords';
 import { ParameterScanner } from './ParameterScanner';
 import { validateSequentialNumbering } from '../validators/sequentialNumbering';
@@ -23,6 +22,7 @@ import { validateInfinityTokenUsage } from '../validators/infinityTokens';
 import { validateParameterReferencesWithParameters } from '../validators/parameterReferences';
 import { validateBlockMatrixSyntax } from '../validators/blockMatrixSyntax';
 import { validateParameterBounds } from '../validators/parameterBounds';
+import { validateContinuationMarkers } from '../validators/continuationMarkers';
 import { ValidationError, ValidationResult } from '../validators/types';
 
 /** Convert a positional `ValidationError` to an LSP `Diagnostic`. */
