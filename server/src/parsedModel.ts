@@ -114,3 +114,9 @@ export interface ParsedModel {
 
 /** LSP request method name; consumers should use this constant. */
 export const PARSED_MODEL_REQUEST = 'nmtran/parsedModel';
+
+/**
+ * LSP request method name for the text-based variant (parse a control-stream
+ * string directly without a workspace document). Available ≥ 0.4.21.
+ */
+export const PARSE_MODEL_TEXT_REQUEST = 'nmtran/parseModelText';

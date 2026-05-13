@@ -426,16 +426,15 @@ describe('buildParsedModel', () => {
 
   // Reported via positron-nonmem 2026-05-12: in lst-mode, the Fit
   // Inspector was showing the WRONG parameter counts for the active
-  // .lst — earlier files' counts were sticking. Root cause: the
-  // `embedded://lst` URI + version=1 hard-coded by the
-  // `nmtran/parseModelText` request handler collides in
-  // `ParameterScanner.scanDocument`'s `${uri}:${version}` cache,
-  // serving the first parse's locations for every subsequent embedded
-  // text. Skip the cache for synthetic URIs.
-  test('parseModelText path: distinct embedded contents return distinct decls (no cache collision)', () => {
-    // beforeEach clears the cache; both calls hit the embedded path.
+  // .lst — earlier files' counts were sticking. Root cause was the
+  // `nmtran/parseModelText` LSP handler reusing the same synthetic URI
+  // (`embedded://lst` + version=1) for every call, colliding in
+  // `ParameterScanner.scanDocument`'s `${uri}:${version}` cache. Fix:
+  // handler now generates a unique URI per call. This test mirrors
+  // that contract — distinct URIs → distinct parsed models.
+  test('parseModelText path: distinct embedded URIs return distinct decls (no cache collision)', () => {
     const m1 = buildParsedModel(
-      TextDocument.create('embedded://lst', 'nmtran', 1, [
+      TextDocument.create('embedded://lst/1', 'nmtran', 1, [
         '$PROBLEM a',
         '$DATA d',
         '$THETA 1 ; A',
@@ -448,7 +447,7 @@ describe('buildParsedModel', () => {
     expect(m1.omegas.length).toBe(2);
 
     const m2 = buildParsedModel(
-      TextDocument.create('embedded://lst', 'nmtran', 1, [
+      TextDocument.create('embedded://lst/2', 'nmtran', 1, [
         '$PROBLEM b',
         '$DATA d',
         '$THETA 1 ; X',
@@ -457,8 +456,6 @@ describe('buildParsedModel', () => {
         '$OMEGA 0 FIX',
       ].join('\n')),
     );
-    // If the cache served m1's result, m2 would report 2 thetas. Real
-    // count is 3.
     expect(m2.thetas.length).toBe(3);
     expect(m2.omegas.length).toBe(1);
     expect(m2.sigmas.length).toBe(0);

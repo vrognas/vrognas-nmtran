@@ -147,4 +147,21 @@ export class LanguageServerManager {
       return null;
     }
   }
+
+  /**
+   * Forward a `nmtran/parseModelText` request — parse a control-stream
+   * string directly without involving a workspace document. Used by
+   * positron-nonmem to parse the embedded control stream out of a
+   * `.lst` (so the Fit Inspector reflects the model AS RUN, not the
+   * current sibling .mod).
+   */
+  public async sendParseModelTextRequest(text: string): Promise<unknown | null> {
+    if (!this.client || !this.client.isRunning()) return null;
+    try {
+      return await this.client.sendRequest('nmtran/parseModelText', { text });
+    } catch (error) {
+      this.logger.error('parseModelText request failed:', error);
+      return null;
+    }
+  }
 }

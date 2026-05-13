@@ -38,7 +38,7 @@ import { buildParsedModel } from './services/parsedModelService';
 
 // Import types and utilities
 import { DEFAULT_SETTINGS, NMTRANSettings } from './types';
-import { PARSED_MODEL_REQUEST } from './parsedModel';
+import { PARSED_MODEL_REQUEST, PARSE_MODEL_TEXT_REQUEST } from './parsedModel';
 import { buildDocumentSymbols } from './utils/validateControlRecords';
 
 // =================================================================
@@ -262,6 +262,30 @@ connection.onRequest(PARSED_MODEL_REQUEST, (params: { textDocument: { uri: strin
     return null;
   }
 });
+
+/**
+ * Custom request: parse a control-stream string directly without
+ * going through a workspace document. Used by positron-nonmem to parse
+ * the embedded control stream from a `.lst` so the Fit Inspector
+ * reflects the model AS RUN, not the current sibling .mod.
+ *
+ * Each call gets a unique synthetic URI so ParameterScanner's
+ * `${uri}:${version}` cache never collides across distinct texts.
+ */
+let embeddedDocCounter = 0;
+connection.onRequest(
+  PARSE_MODEL_TEXT_REQUEST,
+  (params: { text: string }) => {
+    try {
+      const uri = `embedded://lst/${++embeddedDocCounter}`;
+      const doc = TextDocument.create(uri, 'nmtran', 1, params.text);
+      return buildParsedModel(doc);
+    } catch (error) {
+      connection.console.error(`❌ Error in parseModelText handler: ${error}`);
+      return null;
+    }
+  },
+);
 
 /**
  * Provides code completion suggestions for NMTRAN files

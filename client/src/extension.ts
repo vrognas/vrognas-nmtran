@@ -56,6 +56,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<Nmtran
         const result = await languageServerManager.sendParsedModelRequest(uri.toString());
         return (result as NmtranParsedModel | null) ?? null;
       },
+      parseModelFromText: async (text: string): Promise<NmtranParsedModel | null> => {
+        const result = await languageServerManager.sendParseModelTextRequest(text);
+        return (result as NmtranParsedModel | null) ?? null;
+      },
     };
   } catch (error) {
     logger.error('Extension activation failed:', error);

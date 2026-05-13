@@ -22,6 +22,8 @@ export interface NmtranThetaDecl {
   fix: boolean;
   /** 0-based line number of the declaration in the source. */
   line: number;
+  /** Inline `;<comment>` after the decl (Pirana-style label). Available from 0.4.20. */
+  comment?: string;
 }
 
 export interface NmtranOmegaSigmaDecl {
@@ -30,6 +32,8 @@ export interface NmtranOmegaSigmaDecl {
   fix: boolean;
   /** 0-based line number of the declaration in the source. */
   line: number;
+  /** See `NmtranThetaDecl.comment`. */
+  comment?: string;
 }
 
 export interface NmtranEquation {
@@ -53,4 +57,14 @@ export interface NmtranParsedModel {
 export interface NmtranApi {
   /** Returns the structured snapshot for an open NMTRAN file, or null if the server isn't ready or the file is unknown. */
   getParsedModel(uri: vscode.Uri): Promise<NmtranParsedModel | null>;
+  /**
+   * Parse a control-stream string directly without involving a workspace
+   * document. Used by positron-nonmem to parse the embedded control
+   * stream from a `.lst` (so the Fit Inspector reflects the model AS
+   * RUN, not the current sibling .mod). Available from 0.4.21. Returns
+   * null when the LSP server isn't running or when the server-side parse
+   * throws; the parser otherwise tolerates malformed input and returns an
+   * (empty) snapshot.
+   */
+  parseModelFromText(text: string): Promise<NmtranParsedModel | null>;
 }

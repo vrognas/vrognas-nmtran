@@ -92,20 +92,13 @@ export class ParameterScanner {
    * Scan document for all parameter definitions
    */
   static scanDocument(document: TextDocument): ParameterLocation[] {
-    // Cache key is `<uri>:<version>` — that pair uniquely identifies a
-    // workspace document. The `nmtran/parseModelText` request path
-    // (used by positron-nonmem to parse `.lst`-embedded control
-    // streams) reuses a synthetic `embedded://lst` URI with version=1
-    // for EVERY call, so the cache key collides across distinct
-    // contents and the first-parsed result is served for all
-    // subsequent calls. Skip the cache for synthetic URIs — they're
-    // single-shot parses anyway and have no benefit from caching.
-    const isSynthetic = document.uri.startsWith('embedded://');
+    // Cache key is `<uri>:<version>` — the caller is responsible for
+    // ensuring this pair uniquely identifies the document contents.
+    // The `nmtran/parseModelText` LSP handler generates a unique URI per
+    // call (`embedded://lst/<counter>`) so synthetic docs cache safely.
     const cacheKey = `${document.uri}:${document.version}`;
-    if (!isSynthetic) {
-      const cached = this.scanCacheMap.get(cacheKey);
-      if (cached) return this.deepCopyLocations(cached);
-    }
+    const cached = this.scanCacheMap.get(cacheKey);
+    if (cached) return this.deepCopyLocations(cached);
 
     const locations: ParameterLocation[] = [];
     const lines = document.getText().split('\n');
@@ -152,14 +145,11 @@ export class ParameterScanner {
       }
     }
 
-    // Cache the scan result — workspace documents only (synthetic URIs
-    // share a key across distinct contents and would poison the cache).
-    if (!isSynthetic) {
-      this.scanCacheMap.set(cacheKey, locations);
-      if (this.scanCacheMap.size > this.MAX_SCAN_CACHE) {
-        const firstKey = this.scanCacheMap.keys().next().value;
-        if (firstKey) this.scanCacheMap.delete(firstKey);
-      }
+    // Cache the scan result
+    this.scanCacheMap.set(cacheKey, locations);
+    if (this.scanCacheMap.size > this.MAX_SCAN_CACHE) {
+      const firstKey = this.scanCacheMap.keys().next().value;
+      if (firstKey) this.scanCacheMap.delete(firstKey);
     }
 
     return this.deepCopyLocations(locations);
