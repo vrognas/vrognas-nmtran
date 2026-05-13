@@ -1,17 +1,14 @@
 /**
- * NMTRAN Language Server - Modernized Architecture
+ * NMTRAN Language Server.
  *
- * This is the smart part that provides all the NMTRAN language features:
- * - Hover explanations (when you hover over $THETA, shows what it means)
- * - Error checking (highlights invalid control records in red)
- * - Quick fixes (suggests $ESTIMATION when you type $EST)
- * - Document outline (shows all control records in sidebar)
+ * Wires LSP requests to per-feature services (hover, diagnostics, symbols,
+ * completion, formatting, definition / references) plus two custom requests
+ * for ParsedModel snapshots used by the positron-nonmem Fit Inspector.
  *
- * ARCHITECTURE:
- * - Service-based architecture for better maintainability
- * - Proper error handling throughout
- * - Centralized document management
- * - Separated concerns (hover, diagnostics, symbols)
+ * Handlers are kept thin: each wraps document lookup + error reporting
+ * through the `withDoc` / `withErrorBoundary` helpers below. Stateful work
+ * (debounced diagnostics) lives in module-level state here; lifecycle
+ * (open/change/close) tracks it.
  */
 
 import {
@@ -21,12 +18,11 @@ import {
   InitializeParams,
   InitializeResult,
   ProposedFeatures,
-  TextDocumentSyncKind
+  TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
-// Import our services
 import { DocumentService } from './services/documentService';
 import { DiagnosticsService } from './services/diagnosticsService';
 import { HoverService } from './services/hoverService';
@@ -36,58 +32,44 @@ import { DefinitionService } from './services/definitionService';
 import { ParameterScanner } from './services/ParameterScanner';
 import { buildParsedModel } from './services/parsedModelService';
 
-// Import types and utilities
 import { DEFAULT_SETTINGS, NMTRANSettings } from './types';
 import { PARSED_MODEL_REQUEST, PARSE_MODEL_TEXT_REQUEST } from './parsedModel';
 import { buildDocumentSymbols } from './services/documentSymbols';
 
-// =================================================================
-// SERVER SETUP
-// =================================================================
-
 const connection = createConnection(ProposedFeatures.all);
 
-// Log server startup (only in debug mode)
-if (process.env.NODE_ENV === 'development') {
-  connection.console.log('>>> NMTRAN LANGUAGE SERVER STARTING UP <<<');
-  connection.console.log(`Server started at ${new Date().toISOString()}`);
+const isDev = process.env.NODE_ENV === 'development';
+function devLog(msg: string): void {
+  if (isDev) connection.console.log(msg);
 }
 
-// Initialize services
+devLog('>>> NMTRAN LANGUAGE SERVER STARTING UP <<<');
+devLog(`Server started at ${new Date().toISOString()}`);
+
 const services = {
   document: new DocumentService(connection),
   diagnostics: new DiagnosticsService(connection),
   hover: new HoverService(connection),
   formatting: new FormattingService(connection),
   completion: new CompletionService(connection),
-  definition: new DefinitionService(connection)
+  definition: new DefinitionService(connection),
 };
 
-// Settings management - currently only used for maxNumberOfProblems in diagnostics
 const documentSettings: Map<string, Thenable<NMTRANSettings>> = new Map();
 
-// Debounced diagnostics to prevent excessive validation during rapid text changes
 const diagnosticsTimeouts: Map<string, NodeJS.Timeout> = new Map();
 const DIAGNOSTICS_DEBOUNCE_MS = 500;
 
-/**
- * Schedules debounced diagnostics validation for a document
- * Prevents excessive validation during rapid text changes
- */
 function scheduleDebouncedDiagnostics(uri: string, doc: TextDocument): void {
-  // Clear existing timeout for this document
   const existingTimeout = diagnosticsTimeouts.get(uri);
-  if (existingTimeout) {
-    clearTimeout(existingTimeout);
-  }
+  if (existingTimeout) clearTimeout(existingTimeout);
 
-  // Schedule new validation after debounce period
   const timeout = setTimeout(() => {
     try {
       services.diagnostics.validateDocument(doc);
       diagnosticsTimeouts.delete(uri);
     } catch (error) {
-      connection.console.error(`❌ Error in debounced diagnostics: ${error}`);
+      logError('debounced diagnostics', error);
     }
   }, DIAGNOSTICS_DEBOUNCE_MS);
 
@@ -97,60 +79,103 @@ function scheduleDebouncedDiagnostics(uri: string, doc: TextDocument): void {
 function getDocumentSettings(resource: string): Thenable<NMTRANSettings> {
   if (!documentSettings.has(resource)) {
     const result = Promise.all([
-      connection.workspace.getConfiguration({
-        scopeUri: resource,
-        section: 'nmtranServer'
-      }),
-      connection.workspace.getConfiguration({
-        scopeUri: resource,
-        section: 'nmtran'
-      })
-    ]).then(([serverConfig, nmtranConfig]) => {
-      return {
-        maxNumberOfProblems: serverConfig?.maxNumberOfProblems ?? DEFAULT_SETTINGS.maxNumberOfProblems,
-        formatting: {
-          indentSize: Math.max(2, Math.min(4, nmtranConfig?.formatting?.indentSize ?? DEFAULT_SETTINGS.formatting?.indentSize ?? 2))
-        }
-      };
-    });
+      connection.workspace.getConfiguration({ scopeUri: resource, section: 'nmtranServer' }),
+      connection.workspace.getConfiguration({ scopeUri: resource, section: 'nmtran' }),
+    ]).then(([serverConfig, nmtranConfig]) => ({
+      maxNumberOfProblems: serverConfig?.maxNumberOfProblems ?? DEFAULT_SETTINGS.maxNumberOfProblems,
+      formatting: {
+        indentSize: Math.max(
+          2,
+          Math.min(
+            4,
+            nmtranConfig?.formatting?.indentSize ?? DEFAULT_SETTINGS.formatting?.indentSize ?? 2,
+          ),
+        ),
+      },
+    }));
     documentSettings.set(resource, result);
     return result;
   }
   return documentSettings.get(resource)!;
 }
 
+async function getIndentSize(uri: string): Promise<number> {
+  const settings = await getDocumentSettings(uri);
+  return settings.formatting?.indentSize || DEFAULT_SETTINGS.formatting?.indentSize || 2;
+}
+
+// =================================================================
+// HANDLER WRAPPERS
+// =================================================================
+
+function logError(name: string, error: unknown): void {
+  connection.console.error(`❌ Error in ${name}: ${error}`);
+}
+
+/** Sync handler: resolve doc, run fn, on missing-doc or throw return fallback. */
+function withDoc<T>(uri: string, name: string, fn: (doc: TextDocument) => T, fallback: T): T {
+  try {
+    const doc = services.document.getDocument(uri);
+    if (!doc) {
+      connection.console.error(`❌ Document not found for ${name}: ${uri}`);
+      return fallback;
+    }
+    return fn(doc);
+  } catch (error) {
+    logError(`${name} handler`, error);
+    return fallback;
+  }
+}
+
+/** Async handler variant. */
+async function withDocAsync<T>(
+  uri: string,
+  name: string,
+  fn: (doc: TextDocument) => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    const doc = services.document.getDocument(uri);
+    if (!doc) {
+      connection.console.error(`❌ Document not found for ${name}: ${uri}`);
+      return fallback;
+    }
+    return await fn(doc);
+  } catch (error) {
+    logError(`${name} handler`, error);
+    return fallback;
+  }
+}
+
+/** For lifecycle handlers that don't need a doc lookup (open, close, configuration). */
+function withErrorBoundary(name: string, fn: () => void): void {
+  try {
+    fn();
+  } catch (error) {
+    logError(`${name} handler`, error);
+  }
+}
 
 // =================================================================
 // SERVER CAPABILITIES
 // =================================================================
 
 connection.onInitialize((_params: InitializeParams): InitializeResult => {
-  // _params prefixed with underscore to indicate intentionally unused
-  // (required by LSP interface but our simple implementation doesn't need it)
-
-  if (process.env.NODE_ENV === 'development') {
-    connection.console.log('NMTRAN Language Server initializing...');
-    connection.console.log('Workspace folder: ' + (_params.workspaceFolders?.[0]?.uri || 'none'));
-  }
-
+  devLog('NMTRAN Language Server initializing...');
+  devLog('Workspace folder: ' + (_params.workspaceFolders?.[0]?.uri || 'none'));
 
   return {
     capabilities: {
-      textDocumentSync: {
-        openClose: true,
-        change: TextDocumentSyncKind.Incremental
-      },
+      textDocumentSync: { openClose: true, change: TextDocumentSyncKind.Incremental },
       hoverProvider: true,
       codeActionProvider: true,
       documentSymbolProvider: true,
-      completionProvider: {
-        triggerCharacters: ['$', ' ']
-      },
+      completionProvider: { triggerCharacters: ['$', ' '] },
       documentFormattingProvider: true,
       documentRangeFormattingProvider: true,
       definitionProvider: true,
-      referencesProvider: true
-    }
+      referencesProvider: true,
+    },
   };
 });
 
@@ -158,90 +183,40 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
 // LANGUAGE FEATURES
 // =================================================================
 
-/**
- * Provides hover information for NMTRAN control records
- * Shows explanations when users hover over control records like $THETA, $OMEGA, etc.
- */
-connection.onHover(({ textDocument, position }) => {
-  try {
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found: ${textDocument.uri}`);
-      return null;
-    }
+connection.onHover(({ textDocument, position }) =>
+  withDoc(textDocument.uri, 'hover', (doc) => services.hover.provideHover(doc, position), null),
+);
 
-    return services.hover.provideHover(doc, position);
-  } catch (error) {
-    connection.console.error(`❌ Error in hover handler: ${error}`);
-    return null;
-  }
-});
-
-/**
- * Provides code actions (quick fixes) for NMTRAN files
- * Suggests replacing abbreviated control records with full names (e.g., $EST → $ESTIMATION)
- */
-connection.onCodeAction(({ textDocument, range: _range, context }) => {
-  // _range prefixed with underscore to indicate intentionally unused
-  // (required by LSP interface but we use diagnostics range instead)
-  try {
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for code actions: ${textDocument.uri}`);
-      return null;
-    }
-
-    const codeActions: CodeAction[] = [];
-
-    for (const diag of context.diagnostics) {
-      if (diag.message.startsWith("Did you mean")) {
-        const fullRecord = diag.message.replace("Did you mean ", "").replace("?", "");
-
-        const replaceAction: CodeAction = {
+connection.onCodeAction(({ textDocument, context }) =>
+  withDoc(
+    textDocument.uri,
+    'code actions',
+    () => {
+      const codeActions: CodeAction[] = [];
+      for (const diag of context.diagnostics) {
+        if (!diag.message.startsWith('Did you mean')) continue;
+        const fullRecord = diag.message.replace('Did you mean ', '').replace('?', '');
+        codeActions.push({
           title: `Replace with ${fullRecord}`,
           kind: CodeActionKind.QuickFix,
           diagnostics: [diag],
-          edit: {
-            changes: {
-              [textDocument.uri]: [
-                {
-                  range: diag.range,
-                  newText: fullRecord
-                }
-              ]
-            }
-          }
-        };
-
-        codeActions.push(replaceAction);
+          edit: { changes: { [textDocument.uri]: [{ range: diag.range, newText: fullRecord }] } },
+        });
       }
-    }
+      return codeActions;
+    },
+    [] as CodeAction[],
+  ),
+);
 
-    return codeActions;
-  } catch (error) {
-    connection.console.error(`❌ Error in code action handler: ${error}`);
-    return [];
-  }
-});
-
-/**
- * Provides document outline (symbols) for NMTRAN files
- * Lists all control records in the sidebar for easy navigation
- */
-connection.onDocumentSymbol((params) => {
-  try {
-    const doc = services.document.getDocument(params.textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for symbols: ${params.textDocument.uri}`);
-      return null;
-    }
-    const parameterLocations = ParameterScanner.scanDocument(doc);
-    return buildDocumentSymbols(doc, parameterLocations);
-  } catch (error) {
-    connection.console.error(`❌ Error in document symbol handler: ${error}`);
-    return [];
-  }
-});
+connection.onDocumentSymbol((params) =>
+  withDoc(
+    params.textDocument.uri,
+    'document symbols',
+    (doc) => buildDocumentSymbols(doc, ParameterScanner.scanDocument(doc)),
+    [],
+  ),
+);
 
 /**
  * Custom request: structured snapshot of the active model file's
@@ -249,296 +224,165 @@ connection.onDocumentSymbol((params) => {
  * Consumers like positron-nonmem use this to render context-aware views
  * without re-implementing NMTRAN parsing.
  */
-connection.onRequest(PARSED_MODEL_REQUEST, (params: { textDocument: { uri: string } }) => {
-  try {
-    const doc = services.document.getDocument(params.textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for parsedModel: ${params.textDocument.uri}`);
-      return null;
-    }
-    return buildParsedModel(doc);
-  } catch (error) {
-    connection.console.error(`❌ Error in parsedModel handler: ${error}`);
-    return null;
-  }
-});
+connection.onRequest(PARSED_MODEL_REQUEST, (params: { textDocument: { uri: string } }) =>
+  withDoc(params.textDocument.uri, 'parsedModel', (doc) => buildParsedModel(doc), null),
+);
 
 /**
- * Custom request: parse a control-stream string directly without
- * going through a workspace document. Used by positron-nonmem to parse
- * the embedded control stream from a `.lst` so the Fit Inspector
- * reflects the model AS RUN, not the current sibling .mod.
+ * Custom request: parse a control-stream string directly without going
+ * through a workspace document. Used by positron-nonmem to parse the
+ * embedded control stream from a `.lst` so the Fit Inspector reflects the
+ * model AS RUN, not the current sibling .mod.
  *
  * Each call gets a unique synthetic URI so ParameterScanner's
  * `${uri}:${version}` cache never collides across distinct texts.
  */
 let embeddedDocCounter = 0;
-connection.onRequest(
-  PARSE_MODEL_TEXT_REQUEST,
-  (params: { text: string }) => {
-    try {
-      const uri = `embedded://lst/${++embeddedDocCounter}`;
-      const doc = TextDocument.create(uri, 'nmtran', 1, params.text);
-      return buildParsedModel(doc);
-    } catch (error) {
-      connection.console.error(`❌ Error in parseModelText handler: ${error}`);
-      return null;
-    }
-  },
+connection.onRequest(PARSE_MODEL_TEXT_REQUEST, (params: { text: string }) => {
+  try {
+    const uri = `embedded://lst/${++embeddedDocCounter}`;
+    const doc = TextDocument.create(uri, 'nmtran', 1, params.text);
+    return buildParsedModel(doc);
+  } catch (error) {
+    logError('parseModelText handler', error);
+    return null;
+  }
+});
+
+connection.onCompletion(({ textDocument, position }) =>
+  withDoc(
+    textDocument.uri,
+    'completion',
+    (doc) => services.completion.provideCompletions(doc, position),
+    [],
+  ),
 );
 
-/**
- * Provides code completion suggestions for NMTRAN files
- * Suggests control records and common parameter names
- */
-connection.onCompletion(({ textDocument, position }) => {
-  try {
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for completion: ${textDocument.uri}`);
-      return [];
-    }
+connection.onDefinition(({ textDocument, position }) =>
+  withDoc(
+    textDocument.uri,
+    'definition',
+    (doc) => services.definition.provideDefinition(doc, position),
+    null,
+  ),
+);
 
-    return services.completion.provideCompletions(doc, position);
-  } catch (error) {
-    connection.console.error(`❌ Error in completion handler: ${error}`);
-    return [];
-  }
-});
+connection.onReferences(({ textDocument, position, context }) =>
+  withDoc(
+    textDocument.uri,
+    'references',
+    (doc) => services.definition.provideReferences(doc, position, context.includeDeclaration),
+    null,
+  ),
+);
 
-/**
- * Provides definition locations for NMTRAN parameters
- * When user clicks "Go to Definition" on THETA(3), shows where it's defined
- */
-connection.onDefinition(({ textDocument, position }) => {
-  try {
+connection.onDocumentFormatting(({ textDocument }, token) =>
+  withDocAsync(
+    textDocument.uri,
+    'formatting',
+    async (doc) => {
+      if (token.isCancellationRequested) return [];
+      const indentSize = await getIndentSize(textDocument.uri);
+      if (token.isCancellationRequested) return [];
+      devLog(`Format document request for: ${textDocument.uri} (${indentSize}-space)`);
+      return services.formatting.formatDocument(doc, indentSize);
+    },
+    [],
+  ),
+);
 
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for definition: ${textDocument.uri}`);
-      return null;
-    }
+connection.onDocumentRangeFormatting(({ textDocument, range }, token) =>
+  withDocAsync(
+    textDocument.uri,
+    'range formatting',
+    async (doc) => {
+      if (token.isCancellationRequested) return [];
+      const indentSize = await getIndentSize(textDocument.uri);
+      if (token.isCancellationRequested) return [];
+      devLog(`Format range request for: ${textDocument.uri} (${indentSize}-space)`);
+      return services.formatting.formatRange(doc, range, indentSize);
+    },
+    [],
+  ),
+);
 
-    return services.definition.provideDefinition(doc, position);
-  } catch (error) {
-    connection.console.error(`❌ Error in definition handler: ${error}`);
-    return null;
-  }
-});
-
-/**
- * Provides reference locations for NMTRAN parameters
- * When user clicks "Find All References" on ETA(2), shows all usages
- */
-connection.onReferences(({ textDocument, position, context }) => {
-  try {
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for references: ${textDocument.uri}`);
-      return null;
-    }
-
-    return services.definition.provideReferences(doc, position, context.includeDeclaration);
-  } catch (error) {
-    connection.console.error(`❌ Error in references handler: ${error}`);
-    return null;
-  }
-});
-
-/**
- * Provides document formatting for NMTRAN files
- * Formats control records and ensures proper indentation
- */
-connection.onDocumentFormatting(async ({ textDocument }, token) => {
-  try {
-    // Check for cancellation
-    if (token.isCancellationRequested) {
-      return [];
-    }
-
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for formatting: ${textDocument.uri}`);
-      return [];
-    }
-
-    const settings = await getDocumentSettings(textDocument.uri);
-
-    // Check for cancellation after async operation
-    if (token.isCancellationRequested) {
-      return [];
-    }
-
-    const indentSize = settings.formatting?.indentSize || DEFAULT_SETTINGS.formatting?.indentSize || 2;
-    if (process.env.NODE_ENV === 'development') {
-      connection.console.log(`Format document request for: ${textDocument.uri}`);
-      connection.console.log(`Using ${indentSize}-space indentation`);
-    }
-
-    return services.formatting.formatDocument(doc, indentSize);
-  } catch (error) {
-    connection.console.error(`❌ Error in formatting handler: ${error}`);
-    return [];
-  }
-});
-
-/**
- * Provides range formatting for NMTRAN files
- * Formats only the selected range of text
- */
-connection.onDocumentRangeFormatting(async ({ textDocument, range }, token) => {
-  try {
-    // Check for cancellation
-    if (token.isCancellationRequested) {
-      return [];
-    }
-
-    const doc = services.document.getDocument(textDocument.uri);
-    if (!doc) {
-      connection.console.error(`❌ Document not found for range formatting: ${textDocument.uri}`);
-      return [];
-    }
-
-    const settings = await getDocumentSettings(textDocument.uri);
-
-    // Check for cancellation after async operation
-    if (token.isCancellationRequested) {
-      return [];
-    }
-
-    const indentSize = settings.formatting?.indentSize || DEFAULT_SETTINGS.formatting?.indentSize || 2;
-    if (process.env.NODE_ENV === 'development') {
-      connection.console.log(`Format range request for: ${textDocument.uri}`);
-      connection.console.log(`Using ${indentSize}-space indentation`);
-    }
-
-    return services.formatting.formatRange(doc, range, indentSize);
-  } catch (error) {
-    connection.console.error(`❌ Error in range formatting handler: ${error}`);
-    return [];
-  }
-});
-
-/**
- * Handles configuration changes
- * Clears settings cache to ensure fresh configuration is loaded
- */
-connection.onDidChangeConfiguration((_change) => {
-  // Clear document settings cache when configuration changes
+connection.onDidChangeConfiguration(() => {
   documentSettings.clear();
-  if (process.env.NODE_ENV === 'development') {
-    connection.console.log('Configuration changed, cleared settings cache');
-  }
+  devLog('Configuration changed, cleared settings cache');
 });
 
 // =================================================================
 // DOCUMENT LIFECYCLE
 // =================================================================
 
-// Listen for document open events
-connection.onDidOpenTextDocument((params) => {
-  try {
+connection.onDidOpenTextDocument((params) =>
+  withErrorBoundary('document open', () => {
     const doc = services.document.createDocument(
       params.textDocument.uri,
       'nmtran',
       params.textDocument.version,
-      params.textDocument.text
+      params.textDocument.text,
     );
-
     services.document.setDocument(doc);
     services.diagnostics.validateDocument(doc);
-  } catch (error) {
-    connection.console.error(`❌ Error handling document open: ${error}`);
-  }
-});
+  }),
+);
 
-// Listen for document change events (incremental)
-connection.onDidChangeTextDocument((change) => {
-  try {
-    // Get the current document from cache
+connection.onDidChangeTextDocument((change) =>
+  withErrorBoundary('document change', () => {
     let doc = services.document.getDocument(change.textDocument.uri);
-
     if (!doc) {
       connection.console.warn(`⚠️  Document not found in cache: ${change.textDocument.uri}`);
       return;
     }
-
-    // Apply incremental changes
     for (const contentChange of change.contentChanges) {
       if ('range' in contentChange) {
-        // Incremental change
         doc = TextDocument.update(doc, [contentChange], change.textDocument.version);
       } else {
-        // Full document change (fallback)
         doc = services.document.createDocument(
           change.textDocument.uri,
           'nmtran',
           change.textDocument.version,
-          contentChange.text
+          contentChange.text,
         );
       }
     }
-
     services.document.setDocument(doc);
     scheduleDebouncedDiagnostics(change.textDocument.uri, doc);
-  } catch (error) {
-    connection.console.error(`❌ Error handling document change: ${error}`);
-  }
-});
+  }),
+);
 
-// Listen for document close events
-connection.onDidCloseTextDocument((params) => {
-  try {
-    services.document.removeDocument(params.textDocument.uri);
+connection.onDidCloseTextDocument((params) =>
+  withErrorBoundary('document close', () => {
+    const uri = params.textDocument.uri;
+    services.document.removeDocument(uri);
+    ParameterScanner.clearCacheForUri(uri);
+    services.definition.clearCacheForUri(uri);
+    documentSettings.delete(uri);
 
-    // Clear parameter scan caches for closed document
-    ParameterScanner.clearCacheForUri(params.textDocument.uri);
-    services.definition.clearCacheForUri(params.textDocument.uri);
-
-    // Clear cached settings for closed document
-    documentSettings.delete(params.textDocument.uri);
-
-    // Clear any pending diagnostics timeout
-    const timeout = diagnosticsTimeouts.get(params.textDocument.uri);
+    const timeout = diagnosticsTimeouts.get(uri);
     if (timeout) {
       clearTimeout(timeout);
-      diagnosticsTimeouts.delete(params.textDocument.uri);
+      diagnosticsTimeouts.delete(uri);
     }
 
-    // Clear diagnostics for closed document
-    connection.sendDiagnostics({
-      uri: params.textDocument.uri,
-      diagnostics: []
-    });
-  } catch (error) {
-    connection.console.error(`❌ Error handling document close: ${error}`);
-  }
-});
+    connection.sendDiagnostics({ uri, diagnostics: [] });
+  }),
+);
 
 // =================================================================
 // SERVER LIFECYCLE
 // =================================================================
 
-// Handle shutdown gracefully
 connection.onShutdown(() => {
-  // Clear all pending diagnostics timeouts
-  for (const timeout of diagnosticsTimeouts.values()) {
-    clearTimeout(timeout);
-  }
+  for (const timeout of diagnosticsTimeouts.values()) clearTimeout(timeout);
   diagnosticsTimeouts.clear();
 
-  if (process.env.NODE_ENV === 'development') {
+  if (isDev) {
     const stats = services.document.getCacheStats();
-    connection.console.log(`Shutting down. ${stats.documentCount} documents, ${stats.totalSize} chars`);
+    devLog(`Shutting down. ${stats.documentCount} documents, ${stats.totalSize} chars`);
   }
 });
 
-
-// Start listening for requests
 connection.listen();
-
-// Startup confirmation
-if (process.env.NODE_ENV === 'development') {
-  connection.console.log('NMTRAN Language Server is ready');
-}
-
+devLog('NMTRAN Language Server is ready');
