@@ -8,6 +8,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
+import { stripComment } from '../utils/text';
 
 function createScannerState(): ScannerState {
   return {
@@ -159,8 +160,7 @@ export class ParameterScanner {
    */
   private static updateStateForControlRecord(trimmed: string, state: ScannerState, lineNum: number): void {
     // Remove inline comments before checking control records
-    const commentIndex = trimmed.indexOf(';');
-    const lineWithoutComment = commentIndex !== -1 ? trimmed.substring(0, commentIndex).trim() : trimmed;
+    const lineWithoutComment = stripComment(trimmed).trim();
     
     if (PARAMETER_PATTERNS.THETA.test(lineWithoutComment)) {
       state.currentBlockType = 'THETA';
@@ -440,8 +440,7 @@ export class ParameterScanner {
    */
   private static removeKeywords(line: string): string {
     // Remove comments
-    const commentIndex = line.indexOf(';');
-    const contentPart = commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+    const contentPart = stripComment(line);
     
     // Remove control record prefix
     let cleanedPrefix = contentPart.replace(/^\s*\$\w+\s*/i, '');
@@ -550,8 +549,7 @@ export class ParameterScanner {
     const controlRecordLength = controlRecordMatch ? controlRecordMatch[0].length : 0;
     
     // Remove comment part
-    const commentIndex = line.indexOf(';');
-    const lineWithoutComment = commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+    const lineWithoutComment = stripComment(line);
     
     // Get content after control record
     const contentWithSpaces = lineWithoutComment.substring(controlRecordLength);
@@ -721,8 +719,7 @@ export class ParameterScanner {
       const line = lines[lineNum];
       if (!line) continue;
 
-      const commentIndex = line.indexOf(';');
-      const lineWithoutComment = commentIndex !== -1 ? line.substring(0, commentIndex) : line;
+      const lineWithoutComment = stripComment(line);
 
       let match;
       while ((match = PARAMETER_PATTERNS.PARAMETER_REFERENCE.exec(lineWithoutComment)) !== null) {
@@ -849,10 +846,7 @@ export class ParameterScanner {
     }
     
     // Remove comment part
-    const commentIndex = searchText.indexOf(';');
-    if (commentIndex !== -1) {
-      searchText = searchText.substring(0, commentIndex);
-    }
+    searchText = stripComment(searchText);
     
     // For BLOCK matrices, find the specific diagonal element
     if (inBlockMatrix) {
@@ -940,8 +934,7 @@ export class ParameterScanner {
       if (trimmed.startsWith(';')) continue; // Skip comments
       
       // Remove inline comments
-      const commentIndex = trimmed.indexOf(';');
-      const lineWithoutComment = commentIndex !== -1 ? trimmed.substring(0, commentIndex).trim() : trimmed;
+      const lineWithoutComment = stripComment(trimmed).trim();
       
       // Check for OMEGA/SIGMA BLOCK declarations
       const omegaBlockMatch = lineWithoutComment.match(/^\$OMEGA\s+BLOCK\((\d+)\)/i);
@@ -1073,8 +1066,7 @@ export class ParameterScanner {
       if (trimmed.startsWith(';')) continue; // Skip comments
       
       // Remove inline comments
-      const commentIndex = trimmed.indexOf(';');
-      const lineWithoutComment = commentIndex !== -1 ? trimmed.substring(0, commentIndex).trim() : trimmed;
+      const lineWithoutComment = stripComment(trimmed).trim();
       
       // Check for SAME keyword usage
       if (PARAMETER_PATTERNS.SAME.test(lineWithoutComment)) {
@@ -1121,8 +1113,7 @@ export class ParameterScanner {
       const trimmed = line.trim();
       if (trimmed.startsWith(';')) continue;
 
-      const commentIndex = trimmed.indexOf(';');
-      const lineWithoutComment = commentIndex !== -1 ? trimmed.substring(0, commentIndex).trim() : trimmed;
+      const lineWithoutComment = stripComment(trimmed).trim();
 
       // Detect parameter block type and BLOCK(n) declarations
       let startedBlockLine = false;
@@ -1508,8 +1499,7 @@ export class ParameterScanner {
       const trimmed = rawLine.trim();
       if (!trimmed || trimmed.startsWith(';')) continue;
       if (!ABBR_RE.test(trimmed)) continue;
-      const commentIdx = trimmed.indexOf(';');
-      const line = commentIdx !== -1 ? trimmed.substring(0, commentIdx) : trimmed;
+      const line = stripComment(trimmed);
       const r = line.match(COMRES_RE);
       const s = line.match(COMSAV_RE);
       if (r) { comres = Math.max(comres, parseInt(r[1]!, 10)); declared = true; }
@@ -1524,8 +1514,7 @@ export class ParameterScanner {
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const rawLine = lines[lineNum];
       if (!rawLine) continue;
-      const commentIdx = rawLine.indexOf(';');
-      const scanLine = commentIdx !== -1 ? rawLine.substring(0, commentIdx) : rawLine;
+      const scanLine = stripComment(rawLine);
 
       COM_REF.lastIndex = 0;
       let match;
@@ -1569,8 +1558,7 @@ export class ParameterScanner {
       const trimmed = line.trim();
       if (trimmed.startsWith(';')) continue;
 
-      const commentIdx = trimmed.indexOf(';');
-      const withoutComment = commentIdx !== -1 ? trimmed.substring(0, commentIdx) : trimmed;
+      const withoutComment = stripComment(trimmed);
 
       // Control record keyword resets block context; don't scan the $RECORD line itself.
       const controlRecordMatch = withoutComment.match(/^\$(\w+)/);

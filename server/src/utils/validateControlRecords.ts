@@ -1,6 +1,7 @@
 import { Diagnostic, DiagnosticSeverity, DocumentSymbol, SymbolKind, TextDocument } from 'vscode-languageserver/node';
 import { allowedControlRecords } from '../constants';
 import type { ParameterLocation } from '../services/ParameterScanner';
+import { stripComment } from './text';
 
 /**
  * Finds the full allowed control record name if the given record is a recognized abbreviation.
@@ -204,12 +205,7 @@ function validateContinuationMarkers(document: TextDocument): {
  * Strips trailing comments and truncates long content.
  */
 function extractControlRecordDetail(restOfLine: string): string {
-  let detail = restOfLine.trim();
-  // Strip trailing comment
-  const commentIdx = detail.indexOf(';');
-  if (commentIdx >= 0) {
-    detail = detail.substring(0, commentIdx).trim();
-  }
+  let detail = stripComment(restOfLine).trim();
   // Truncate
   if (detail.length > 60) {
     detail = detail.substring(0, 57) + '...';

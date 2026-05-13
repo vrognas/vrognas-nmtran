@@ -26,6 +26,8 @@
  * Pure / vscode-free / no IO — single text in, six Maps out.
  */
 
+import { stripComment } from '../utils/text';
+
 export interface PriorEntry {
   value: number;
   fix: boolean;
@@ -319,9 +321,4 @@ function extractComment(rawLine: string): string | undefined {
   if (rawLine[semi + 1] === ';') return undefined;
   const t = rawLine.slice(semi + 1).trim();
   return t.length > 0 ? t : undefined;
-}
-
-function stripComment(line: string): string {
-  const idx = line.indexOf(';');
-  return idx === -1 ? line : line.slice(0, idx);
 }

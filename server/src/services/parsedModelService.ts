@@ -19,6 +19,7 @@ import {
 import { extractPriors, type PriorEntry } from './priorScanner';
 import { evaluate, EvalContext } from './nmtranExpression';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
+import { stripComment } from '../utils/text';
 
 export function buildParsedModel(doc: TextDocument): ParsedModel {
   // Split on either LF or CRLF so individual line strings never carry a
@@ -221,11 +222,6 @@ function hasFixRange(loc: ParameterLocation, lines: string[]): boolean {
     if (/^FIX(ED)?$/i.test(text)) return true;
   }
   return false;
-}
-
-function stripComment(line: string): string {
-  const idx = line.indexOf(';');
-  return idx === -1 ? line : line.slice(0, idx);
 }
 
 /** Split bound expression on top-level commas; preserves empty middle-component (low,,up). */

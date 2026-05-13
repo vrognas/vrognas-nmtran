@@ -11,6 +11,7 @@ import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ParameterScanner } from './ParameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
+import { stripComment } from '../utils/text';
 
 // Constants for consistent parameter pattern matching
 const PARAMETER_PATTERNS = {
@@ -52,11 +53,6 @@ const NMTRAN_KEYWORDS = new Set([
   'FIX',
   'FIXED',
 ]);
-
-function stripInlineComment(line: string): string {
-  const idx = line.indexOf(';');
-  return idx === -1 ? line : line.slice(0, idx);
-}
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -359,8 +355,7 @@ export class DefinitionService {
    */
   private findDiagonalElementPosition(line: string, paramIndex: number): CharacterRange | null {
     // Remove comment part
-    const codePartEnd = line.indexOf(';');
-    const codePart = codePartEnd !== -1 ? line.substring(0, codePartEnd) : line;
+    const codePart = stripComment(line);
     
     // Find all numeric values (including scientific notation)
     const numericPattern = /[\d\-+][\d\-+.eE]*/g;
@@ -395,8 +390,7 @@ export class DefinitionService {
    */
   private findDiagonalElementInText(text: string, paramIndex: number, startOffset: number): CharacterRange | null {
     // Remove comment part
-    const codePartEnd = text.indexOf(';');
-    const codePart = codePartEnd !== -1 ? text.substring(0, codePartEnd) : text;
+    const codePart = stripComment(text);
     
     // Find all numeric values (including scientific notation)
     const numericPattern = /[\d\-+][\d\-+.eE]*/g;
@@ -430,8 +424,7 @@ export class DefinitionService {
    */
   private findParameterValuePosition(line: string, paramPosition: number): CharacterRange | null {
     // Remove comment part
-    const codePartEnd = line.indexOf(';');
-    const codePart = codePartEnd !== -1 ? line.substring(0, codePartEnd) : line;
+    const codePart = stripComment(line);
     
     // Remove control record prefix (e.g., $OMEGA) and BLOCK(n) pattern if present
     let contentPart = codePart.replace(/^\s*\$\w+\s*/i, '');
@@ -488,8 +481,7 @@ export class DefinitionService {
    */
   private findThetaInitialValue(line: string, paramPosition: number): CharacterRange | null {
     // Remove comment part
-    const codePartEnd = line.indexOf(';');
-    const codePart = codePartEnd !== -1 ? line.substring(0, codePartEnd) : line;
+    const codePart = stripComment(line);
     
     // Remove control record prefix (e.g., $THETA)
     const contentPart = codePart.replace(/^\s*\$\w+\s*/i, '');
@@ -1072,7 +1064,7 @@ export class DefinitionService {
     const assignRe = new RegExp(`^\\s*(${escapeRegex(name)})\\s*=`, 'i');
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const raw = lines[lineNum] ?? '';
-      const codeOnly = stripInlineComment(raw);
+      const codeOnly = stripComment(raw);
       if (!codeOnly.trim()) continue;
 
       // Track whether we're in an abbreviated-code block, accounting for
