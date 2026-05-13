@@ -86,9 +86,44 @@ function isDiagnosableSourceFile(uri: string): boolean {
 
 export class DiagnosticsService {
   private connection: Connection;
+  private timeouts: Map<string, NodeJS.Timeout> = new Map();
+  private static readonly DEBOUNCE_MS = 500;
 
   constructor(connection: Connection) {
     this.connection = connection;
+  }
+
+  /**
+   * Debounced re-validation. Rapid edits within DEBOUNCE_MS coalesce
+   * to a single validation pass. The previously-pending timeout (if any)
+   * is cleared and replaced.
+   */
+  scheduleValidation(document: TextDocument): void {
+    const uri = document.uri;
+    const existing = this.timeouts.get(uri);
+    if (existing) clearTimeout(existing);
+
+    const timeout = setTimeout(() => {
+      this.timeouts.delete(uri);
+      void this.validateDocument(document);
+    }, DiagnosticsService.DEBOUNCE_MS);
+
+    this.timeouts.set(uri, timeout);
+  }
+
+  /** Clear pending validation for one URI (document closed). */
+  dispose(uri: string): void {
+    const timeout = this.timeouts.get(uri);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.timeouts.delete(uri);
+    }
+  }
+
+  /** Clear all pending validations (server shutdown). */
+  disposeAll(): void {
+    for (const timeout of this.timeouts.values()) clearTimeout(timeout);
+    this.timeouts.clear();
   }
 
   /**

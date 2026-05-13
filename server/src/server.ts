@@ -57,25 +57,6 @@ const services = {
 
 const documentSettings: Map<string, Thenable<NMTRANSettings>> = new Map();
 
-const diagnosticsTimeouts: Map<string, NodeJS.Timeout> = new Map();
-const DIAGNOSTICS_DEBOUNCE_MS = 500;
-
-function scheduleDebouncedDiagnostics(uri: string, doc: TextDocument): void {
-  const existingTimeout = diagnosticsTimeouts.get(uri);
-  if (existingTimeout) clearTimeout(existingTimeout);
-
-  const timeout = setTimeout(() => {
-    try {
-      services.diagnostics.validateDocument(doc);
-      diagnosticsTimeouts.delete(uri);
-    } catch (error) {
-      logError('debounced diagnostics', error);
-    }
-  }, DIAGNOSTICS_DEBOUNCE_MS);
-
-  diagnosticsTimeouts.set(uri, timeout);
-}
-
 function getDocumentSettings(resource: string): Thenable<NMTRANSettings> {
   if (!documentSettings.has(resource)) {
     const result = Promise.all([
@@ -348,7 +329,7 @@ connection.onDidChangeTextDocument((change) =>
       }
     }
     services.document.setDocument(doc);
-    scheduleDebouncedDiagnostics(change.textDocument.uri, doc);
+    services.diagnostics.scheduleValidation(doc);
   }),
 );
 
@@ -358,13 +339,8 @@ connection.onDidCloseTextDocument((params) =>
     services.document.removeDocument(uri);
     ParameterScanner.clearCacheForUri(uri);
     services.definition.clearCacheForUri(uri);
+    services.diagnostics.dispose(uri);
     documentSettings.delete(uri);
-
-    const timeout = diagnosticsTimeouts.get(uri);
-    if (timeout) {
-      clearTimeout(timeout);
-      diagnosticsTimeouts.delete(uri);
-    }
 
     connection.sendDiagnostics({ uri, diagnostics: [] });
   }),
@@ -375,8 +351,7 @@ connection.onDidCloseTextDocument((params) =>
 // =================================================================
 
 connection.onShutdown(() => {
-  for (const timeout of diagnosticsTimeouts.values()) clearTimeout(timeout);
-  diagnosticsTimeouts.clear();
+  services.diagnostics.disposeAll();
 
   if (isDev) {
     const stats = services.document.getCacheStats();
