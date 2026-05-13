@@ -7,6 +7,36 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.35] - 2026-05-13
+
+### Fixed
+
+* **`$OMEGAP` / `$SIGMAP` BLOCK-row inline comments** now surface on the
+  ParsedModel wire. Previously `consumeBlockRow` received `stripComment(raw)`
+  and then ran `extractComment` on it, so the semicolon was already gone —
+  every BLOCK-row PriorDecl had `comment: undefined`. Singleton (non-BLOCK)
+  form was unaffected. Pinning test added.
+
+### Changed
+
+Next-layer cleanups — three focused refactors, no behavior change.
+
+* **`server.ts` extracted helpers.** `withDoc(uri, name, fn, fallback)` +
+  `withDocAsync` + `withErrorBoundary(name, fn)` collapse the copy-pasted
+  try/catch + missing-doc check that appeared in all 13 LSP handlers.
+  `devLog(msg)` gates the 7 `process.env.NODE_ENV === 'development'`
+  checks. `getIndentSize(uri)` dedups between the two formatting handlers.
+  Net: `server.ts` 544 → 399 LOC.
+* **`DiagnosticsService` owns the debounce.** The per-URI `setTimeout` Map
+  + clear/dispose plumbing was module-level state in `server.ts`. Moved
+  to `DiagnosticsService.scheduleValidation` / `dispose(uri)` /
+  `disposeAll()`. Server calls become single-line wires.
+* **`priorScanner` dead code dropped.** `priorMapFor` signature narrowed
+  from `Kind` to `StoredKind` (excludes the `*PD` kinds that never reach
+  it) — switch is now exhaustive, two unreachable branches gone.
+  `BlockMembership.blocks[].line` field was set twice, read zero times;
+  removed. Unused `stripComment` import removed.
+
 ## [0.4.34] - 2026-05-13
 
 ### Changed
