@@ -7,6 +7,7 @@
 
 import { ParameterScanner } from '../services/ParameterScanner';
 import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
+import { validateBlockMatrixSyntax } from '../validators/blockMatrixSyntax';
 import { createDocument } from './test-helpers';
 
 describe('BLOCK Matrix Validation', () => {
@@ -20,7 +21,7 @@ describe('BLOCK Matrix Validation', () => {
 $OMEGA BLOCK(2) 0.1 0.05 0.2
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -34,7 +35,7 @@ $OMEGA BLOCK(3)
   0.02 0.03 0.15
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -47,7 +48,7 @@ $OMEGA BLOCK(2) SAME
 $OMEGA BLOCK(1) SAME
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -60,7 +61,7 @@ $OMEGA 0.3
 $OMEGA BLOCK(1) 0.4
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true); // BLOCK(1) is valid - no warnings
       expect(validation.errors).toHaveLength(0);
@@ -73,7 +74,7 @@ $OMEGA BLOCK(1) 0.4
 $OMEGA BLOCK(2) 0.1 0.05
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -85,7 +86,7 @@ $OMEGA BLOCK(2) 0.1 0.05
 $OMEGA BLOCK(2) 0.1 0.05 0.2 0.15
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -97,7 +98,7 @@ $OMEGA BLOCK(2) 0.1 0.05 0.2 0.15
 $OMEGA BLOCK(0) 0.1
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -112,7 +113,7 @@ $OMEGA BLOCK(2) 0.1 0.05 0.2    ; Valid - true matrix
 $OMEGA BLOCK(1) 0.3             ; Valid - another BLOCK(1)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -125,7 +126,7 @@ $OMEGA BLOCK(1) 0.3             ; Valid - another BLOCK(1)
 $SIGMA BLOCK(2) 0.01 0.005 0.02
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -136,7 +137,7 @@ $SIGMA BLOCK(2) 0.01 0.005 0.02
 $SIGMA BLOCK(3) 0.01 0.005
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -153,7 +154,7 @@ $OMEGA BLOCK(2) SAME            ; Reference to first block
 $OMEGA 0.4                      ; Regular parameter
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true); // All BLOCK structures are valid
       expect(validation.errors).toHaveLength(0);
@@ -166,7 +167,7 @@ $OMEGA BLOCK(2) ; Block matrix start
   0.05 0.2      ; Covariance and variance for second parameter
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -183,7 +184,7 @@ $SIGMA BLOCK(2)
 0.005 0.02
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -238,7 +239,7 @@ $OMEGA BLOCK() 0.1  ; Missing size
 $OMEGA BLOCK(abc) 0.2  ; Non-numeric size
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       // Should not crash, may or may not report errors depending on parsing strategy
       expect(validation).toBeDefined();
@@ -251,7 +252,7 @@ $OMEGA BLOCK(2)
 $THETA 1.5
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -262,7 +263,7 @@ $THETA 1.5
       const content = `
 $OMEGA BLOCK(2) 0.1 0.05 0.2`;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const validation = validateBlockMatrixSyntax(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -284,7 +285,7 @@ $OMEGA BLOCK(2) 0.1 0.05 0.2`;
         const content = `$OMEGA BLOCK(${size}) ${elements}`;
         
         const document = createDocument(content);
-        const validation = ParameterScanner.validateBlockMatrixSyntax(document);
+        const validation = validateBlockMatrixSyntax(document);
         
         expect(validation.isValid).toBe(true); // All BLOCK sizes are valid
       });

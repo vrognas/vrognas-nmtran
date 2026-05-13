@@ -1,5 +1,6 @@
 import { ParameterScanner } from '../services/ParameterScanner';
 import { validateSequentialNumbering } from '../validators/sequentialNumbering';
+import { validateParameterReferences } from '../validators/parameterReferences';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 // Test the exact scenario from moxonidine.mod
@@ -123,7 +124,7 @@ V = THETA(2)
 Y = F + F * EPS(1)`;
     const validDocument = TextDocument.create('test://test.mod', 'nmtran', 1, validContent);
     
-    const validResult = ParameterScanner.validateParameterReferences(validDocument);
+    const validResult = validateParameterReferences(validDocument);
     expect(validResult.isValid).toBe(true);
     expect(validResult.errors).toHaveLength(0);
 
@@ -137,7 +138,7 @@ KA = THETA(3) * EXP(ETA(5))  ; Invalid - only 1 ETA defined
 Y = F + F * EPS(2)  ; Invalid - no EPS defined`;
     const invalidDocument = TextDocument.create('test://test-invalid.mod', 'nmtran', 1, invalidContent);
 
-    const invalidResult = ParameterScanner.validateParameterReferences(invalidDocument);
+    const invalidResult = validateParameterReferences(invalidDocument);
     expect(invalidResult.isValid).toBe(false);
     expect(invalidResult.errors).toHaveLength(4);
     
@@ -171,7 +172,7 @@ Y = F + F * EPS(1)           ; Uses EPS(1)
 ; THETA(1), THETA(3), ETA(1) are defined but never used`;
     const unusedDocument = TextDocument.create('test://test.mod', 'nmtran', 1, contentWithUnused);
     
-    const result = ParameterScanner.validateParameterReferences(unusedDocument);
+    const result = validateParameterReferences(unusedDocument);
     expect(result.isValid).toBe(false);
     
     // Should find 3 unused parameters
@@ -208,7 +209,7 @@ KA = THETA(3)                ; ERROR: THETA(3) doesn't exist (commented out)
 Q = ETA(2)                   ; ERROR: ETA(2) doesn't exist (commented out)`;
 
     const commentDocument = TextDocument.create('test://test.mod', 'nmtran', 1, contentWithComments);
-    const result = ParameterScanner.validateParameterReferences(commentDocument);
+    const result = validateParameterReferences(commentDocument);
     
     expect(result.isValid).toBe(false);
     
@@ -245,7 +246,7 @@ IIV = ETA(1)    ; OK - uses ETA(1) = 0.1
 ERR = EPS(1)    ; OK - uses EPS(1) = 0.01`;
 
     const mixedDocument = TextDocument.create('test://test.mod', 'nmtran', 1, mixedContent);
-    const result = ParameterScanner.validateParameterReferences(mixedDocument);
+    const result = validateParameterReferences(mixedDocument);
     
     // Should be valid - all referenced parameters are properly defined (uncommented)
     expect(result.isValid).toBe(true);
@@ -266,7 +267,7 @@ $ERROR
 Y = F + F * ERR(1) + ERR(2)  ; Uses ERR instead of EPS - should be valid`;
 
     const errDocument = TextDocument.create('test://test.mod', 'nmtran', 1, contentWithErr);
-    const result = ParameterScanner.validateParameterReferences(errDocument);
+    const result = validateParameterReferences(errDocument);
     
     // Should be valid - ERR(1) maps to EPS(1), ERR(2) maps to EPS(2)
     expect(result.isValid).toBe(true);
@@ -284,7 +285,7 @@ Y = F + F * ERR(1) + ERR(3)  ; ERR(3) should be invalid
 CL = THETA(1) * EXP(ETA(1))  ; Use all defined parameters`;
 
     const invalidErrDocument = TextDocument.create('test://test.mod', 'nmtran', 1, contentWithInvalidErr);
-    const result = ParameterScanner.validateParameterReferences(invalidErrDocument);
+    const result = validateParameterReferences(invalidErrDocument);
     
     // Should be invalid - ERR(3) maps to EPS(3) but only EPS(1) is defined
     expect(result.isValid).toBe(false);
@@ -305,7 +306,7 @@ Y = F + F * ERR(1)  ; Only uses ERR(1), EPS(2) is unused
 CL = THETA(1) * EXP(ETA(1))  ; Use all other parameters`;
 
     const unusedEpsDocument = TextDocument.create('test://test.mod', 'nmtran', 1, contentWithUnusedEps);
-    const result = ParameterScanner.validateParameterReferences(unusedEpsDocument);
+    const result = validateParameterReferences(unusedEpsDocument);
 
     // Should be invalid - EPS(2) is defined but never referenced (ERR(1) maps to EPS(1))
     expect(result.isValid).toBe(false);
@@ -324,7 +325,7 @@ CL = THETA(1)
 $ERROR
 Y = A(3) + ERR(1)`;
     const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-    const result = ParameterScanner.validateParameterReferences(doc);
+    const result = validateParameterReferences(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -337,7 +338,7 @@ CL = THETA(1) * EXP(ETA(1))
 $ERROR
 Y = F + ERR(2)`;
     const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-    const result = ParameterScanner.validateParameterReferences(doc);
+    const result = validateParameterReferences(doc);
     expect(result.isValid).toBe(false);
     const err = result.errors.find(e => e.message.includes('ERR(2)'));
     expect(err?.message).toBe('ERR(2) referenced but only 1 ETA parameters defined');
@@ -354,7 +355,7 @@ V = Theta(2)
 $ERROR
 Y = F + F * err(1)`;
     const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-    const result = ParameterScanner.validateParameterReferences(doc);
+    const result = validateParameterReferences(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -368,7 +369,7 @@ $PK
 CL = theta(5) * EXP(eta(1))
 Y = F + F * eps(1)`;
     const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-    const result = ParameterScanner.validateParameterReferences(doc);
+    const result = validateParameterReferences(doc);
     expect(result.isValid).toBe(false);
     const err = result.errors.find(e => e.message.includes('THETA(5)'));
     expect(err?.message).toBe('THETA(5) referenced but only 1 THETA parameters defined');
@@ -382,7 +383,7 @@ CL = THETA(1) * EXP(ETA(1))
 $ERROR
 Y = F + EPS(1)`;
     const doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-    const result = ParameterScanner.validateParameterReferences(doc);
+    const result = validateParameterReferences(doc);
     const err = result.errors.find(e => e.message.includes('THETA(1)'));
     expect(err?.message).toBe('THETA(1) referenced but no THETA parameters defined');
   });

@@ -11,6 +11,7 @@ import { explainControlRecordHover } from '../hoverInfo';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
 import { ParameterScanner, ParameterLocation } from './ParameterScanner';
 import { reservedDiagnosticItems } from '../constants';
+import { resolveErrBinding } from '../utils/errBinding';
 
 export class HoverService {
   private connection: Connection;
@@ -72,7 +73,7 @@ export class HoverService {
 
         // Resolve ERR -> ETA (individual) or EPS (population) per NONMEM Help Ch.8.
         const normalizedType = paramType === 'ERR'
-          ? ParameterScanner.resolveErrBinding(document).binding
+          ? resolveErrBinding(document).binding
           : paramType;
 
         // Find the parameter definition

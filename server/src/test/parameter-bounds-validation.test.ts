@@ -6,6 +6,7 @@
  */
 
 import { ParameterScanner } from '../services/ParameterScanner';
+import { validateParameterBounds } from '../validators/parameterBounds';
 import { createDocument } from './test-helpers';
 
 describe('Parameter Bounds Validation', () => {
@@ -21,7 +22,7 @@ $THETA (0,1.565)        ; Lower bound, initial (no upper)
 $THETA 2.1              ; Just initial value
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -34,7 +35,7 @@ $THETA (-INFINITY,1.5,INFINITY) ; Alternative infinity notation
 $THETA (0,2.1,INF)       ; Mixed finite and infinite
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -48,7 +49,7 @@ $THETA (-INFIN,1,INFIN)
 $THETA (-INFTY,1,INFTY)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -60,7 +61,7 @@ $THETA (-10,-2.7,0)      ; All negative bounds
 $THETA (-INF,-5,10)      ; Mixed negative/positive
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -72,7 +73,7 @@ $THETA (1E-6,1E-3,1E-1)  ; Scientific notation
 $THETA (0,2.5E-2,1E2)    ; Mixed notation
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -83,7 +84,7 @@ $THETA (0,2.5E-2,1E2)    ; Mixed notation
 $THETA (0,,0.346)        ; Empty initial value - valid for THETA
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -96,7 +97,7 @@ $THETA (0,,0.346)        ; Empty initial value - valid for THETA
 $THETA (10,5,20)         ; Lower > initial
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -108,7 +109,7 @@ $THETA (10,5,20)         ; Lower > initial
 $THETA (0,15,10)         ; Initial > upper
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -120,7 +121,7 @@ $THETA (0,15,10)         ; Initial > upper
 $THETA (20,25,10)        ; Lower > upper (also other violations)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -133,7 +134,7 @@ $THETA (0,abc,10)        ; Invalid initial value
 $THETA (xyz,5,10)        ; Invalid lower bound
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -147,7 +148,7 @@ $THETA (0,1,2,3)         ; Too many components (4)
 $THETA (1,2)             ; Ambiguous - could be (low,init) but 2 components not standard
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -160,7 +161,7 @@ $THETA (0,,0.346)        ; Valid: empty initial value for THETA
 $THETA (0,abc,0.346)     ; Invalid: non-numeric initial value
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -173,7 +174,7 @@ $OMEGA (0.001,0.1,1.0)   ; Invalid: OMEGA doesn't support bounds
 $SIGMA (1E-6,0.01,0.1)   ; Invalid: SIGMA doesn't support bounds
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(2);
@@ -189,7 +190,7 @@ $OMEGA 0.1               ; Valid variance value
 $OMEGA 0.2               ; Another variance value
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -200,7 +201,7 @@ $OMEGA 0.2               ; Another variance value
 $OMEGA -0.1              ; Negative variance (unusual but allowed)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -212,7 +213,7 @@ $OMEGA -0.1              ; Negative variance (unusual but allowed)
 $OMEGA BLOCK(2) 0.1 0.05 0.2
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -229,7 +230,7 @@ $OMEGA BLOCK(4)
 7.11753E-04  8.46056E-04  1.47772E-03  0.1
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -241,7 +242,7 @@ $OMEGA BLOCK(4)
 $OMEGA BLOCK(2) 0.1 0.05 -0.2
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(false);
       expect(validation.errors.some(e => e.message.includes('-0.2'))).toBe(true);
@@ -253,7 +254,7 @@ $OMEGA BLOCK(2) 0.1 0.05 -0.2
 $OMEGA BLOCK(2) 0.1 -0.05 0.2
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
 
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -267,7 +268,7 @@ $SIGMA 0.01              ; Valid residual error value
 $SIGMA 1 FIX             ; Fixed residual error
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -278,7 +279,7 @@ $SIGMA 1 FIX             ; Fixed residual error
 $SIGMA -0.5              ; Negative residual error (unusual)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -298,7 +299,7 @@ $OMEGA -0.2              ; Warning - negative variance
 $SIGMA 1 FIX             ; Valid SIGMA (no bounds to check)
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -316,7 +317,7 @@ $THETA (10,5,20)       ; Invalid bound - lower > initial
 $OMEGA 0.1             ; IIV on CL
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -331,7 +332,7 @@ $SIGMA 0.01              ; Valid SIGMA value
 $THETA (20,5,10)         ; Invalid THETA - multiple bound violations
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors.length).toBeGreaterThan(0);
@@ -346,7 +347,7 @@ $THETA 0,1,10)          ; Missing opening paren
 $THETA ((0,1,10))       ; Double parentheses
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       // Should not crash - behavior may vary based on parsing strategy
       expect(validation).toBeDefined();
@@ -358,7 +359,7 @@ $THETA ()                ; Empty bounds
 $THETA (,1,)             ; Empty components
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       // Should handle gracefully without crashing
       expect(validation).toBeDefined();
@@ -370,7 +371,7 @@ $THETA (0,1e10,1e20)     ; Very large numbers
 $THETA (-1e20,-1e10,0)   ; Very large negative numbers
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -383,7 +384,7 @@ $OMEGA 0.1 0.2           ; Simple variances
 $SIGMA 1 FIX             ; Fixed parameter
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -394,7 +395,7 @@ $SIGMA 1 FIX             ; Fixed parameter
     it('should report correct positions for bound validation errors', () => {
       const content = `$THETA (10,5,20)`;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -408,7 +409,7 @@ $SIGMA 1 FIX             ; Fixed parameter
     it('should handle multiple bound expressions on same line', () => {
       const content = `$THETA (0,1,10) (20,5,30)`;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateParameterBounds(document);
+      const validation = validateParameterBounds(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1); // Only second expression has error

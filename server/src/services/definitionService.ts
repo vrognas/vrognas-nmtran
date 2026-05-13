@@ -18,6 +18,7 @@ import {
   SAME_RE,
   createParameterReferenceRegex,
 } from '../utils/patterns';
+import { resolveErrBinding } from '../utils/errBinding';
 
 const PARAMETER_PATTERNS = {
   ...RECORD_PATTERNS,
@@ -185,7 +186,7 @@ export class DefinitionService {
         const rawType = match[1]!.toUpperCase();
         // Resolve ERR -> ETA (individual) or EPS (population) per NONMEM Help Ch.8.
         const mappedType = rawType === 'ERR'
-          ? ParameterScanner.resolveErrBinding(document).binding
+          ? resolveErrBinding(document).binding
           : rawType;
         return {
           type: mappedType,

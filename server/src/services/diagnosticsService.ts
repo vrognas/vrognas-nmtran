@@ -17,6 +17,9 @@ import { validateSequentialNumbering } from '../validators/sequentialNumbering';
 import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
 import { validateComIndices } from '../validators/comIndices';
 import { validateInfinityTokenUsage } from '../validators/infinityTokens';
+import { validateParameterReferencesWithParameters } from '../validators/parameterReferences';
+import { validateBlockMatrixSyntax } from '../validators/blockMatrixSyntax';
+import { validateParameterBounds } from '../validators/parameterBounds';
 
 export class DiagnosticsService {
   private connection: Connection;
@@ -62,7 +65,7 @@ export class DiagnosticsService {
       }
 
       // Validate parameter references using existing scanned parameters
-      const referenceValidation = ParameterScanner.validateParameterReferencesWithParameters(document, parameters);
+      const referenceValidation = validateParameterReferencesWithParameters(document, parameters);
       if (!referenceValidation.isValid) {
         for (const error of referenceValidation.errors) {
           const diagnostic: Diagnostic = {
@@ -79,7 +82,7 @@ export class DiagnosticsService {
       }
 
       // Validate BLOCK matrix syntax and structure
-      const blockMatrixValidation = ParameterScanner.validateBlockMatrixSyntax(document);
+      const blockMatrixValidation = validateBlockMatrixSyntax(document);
       if (!blockMatrixValidation.isValid) {
         for (const error of blockMatrixValidation.errors) {
           const diagnostic: Diagnostic = {
@@ -130,7 +133,7 @@ export class DiagnosticsService {
       }
 
       // Validate parameter bounds
-      const parameterBoundsValidation = ParameterScanner.validateParameterBounds(document);
+      const parameterBoundsValidation = validateParameterBounds(document);
       if (!parameterBoundsValidation.isValid) {
         for (const error of parameterBoundsValidation.errors) {
           const diagnostic: Diagnostic = {
