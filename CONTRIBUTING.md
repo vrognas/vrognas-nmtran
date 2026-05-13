@@ -7,7 +7,7 @@ Thank you for your interest in contributing! Whether you're fixing bugs, adding 
 ### Prerequisites
 
 - **Node.js**: v20.8.0+ ([Download](https://nodejs.org/))
-- **VSCode**: v1.102.0+ ([Download](https://code.visualstudio.com/))
+- **VS Code**: v1.109.0+ ([Download](https://code.visualstudio.com/)) — or Positron 2026.04+ for the Positron build
 - **Git**: For version control ([Download](https://git-scm.com/))
 
 Optional: TypeScript and ESLint VSCode extensions for better development experience.
@@ -50,7 +50,7 @@ npm run validate         # Lint + compile + test (run before commits)
 | `npm run build` | Production build (esbuild to dist/) |
 | `npm run dev` | Watch mode for development |
 | `npm test` | Run all tests (client + server) |
-| `npm run test:server` | Jest unit tests only |
+| `npm run test:server` | Vitest unit tests only |
 | `npm run validate` | Lint + compile + test |
 | `npm run lint` | ESLint code style check |
 
@@ -102,10 +102,10 @@ Register in `server/src/server.ts` and add tests in `server/src/test/`.
 ### Automated Tests
 
 ```bash
-npm test                           # Full test suite
-npm run test:server                # Server unit tests (Jest)
-cd server && npm run test:watch    # Watch mode
-cd server && npm test -- file.test.ts  # Specific test file
+npm test                           # Full test suite (vscode-test + server vitest)
+npm run test:server                # Server unit tests (vitest)
+cd server && npx vitest watch      # Vitest watch mode
+cd server && npx vitest file.test.ts   # Specific test file
 ```
 
 Coverage thresholds: 80% for branches, functions, lines, statements.
@@ -145,21 +145,31 @@ Use "Debug Extension + Server" launch configuration for full breakpoint debuggin
 
 ```
 ├── client/src/
-│   ├── extension.ts          # Extension entry point
+│   ├── extension.ts          # Extension entry point, exposes NmtranApi
+│   ├── parsedModelApi.ts     # Public API surface returned from activate()
 │   └── features/
 │       ├── foldingProvider.ts    # Code folding
-│       └── languageServer.ts     # Language server management
+│       ├── verbatimDecorator.ts  # Verbatim FORTRAN block highlighting
+│       └── languageServer.ts     # LSP client wiring + LSP request helpers
 ├── server/src/
-│   ├── server.ts             # Language server main
-│   ├── constants.ts          # Valid control records
+│   ├── server.ts             # LSP server main + custom request handlers
+│   ├── constants.ts          # Valid control records, abbreviated-code blocks
 │   ├── hoverInfo.ts          # Control record explanations
-│   ├── services/             # Feature services
-│   ├── utils/                # Utilities
-│   └── test/                 # Jest tests
+│   ├── parsedModel.ts        # Wire-format types + LSP method names
+│   ├── services/             # Stateful services (ParameterScanner, Document,
+│   │                           Diagnostics, Hover, Definition, Completion,
+│   │                           Formatting, parsedModelService, priorScanner,
+│   │                           nmtranExpression)
+│   ├── validators/           # One file per validator (Tier-3 split):
+│   │                           sequentialNumbering, parameterReferences,
+│   │                           blockMatrixSyntax, sameKeywordUsage,
+│   │                           parameterBounds, comIndices, infinityTokens
+│   ├── utils/                # Shared text / regex / matrix / errBinding helpers
+│   └── test/                 # Vitest tests
 ├── syntaxes/                 # TextMate grammar
 ├── snippets/                 # Code snippets
 ├── test/                     # Sample NMTRAN files
-└── dist/                     # Bundled output
+└── dist/                     # Bundled output (esbuild)
 ```
 
 ## Troubleshooting
@@ -185,9 +195,11 @@ Use "Debug Extension + Server" launch configuration for full breakpoint debuggin
 1. Run `npm run validate`
 2. Update version in `package.json`
 3. Update `CHANGELOG.md`
-4. Commit: `git commit -m "Bump version to X.Y.Z"`
+4. Commit: `git commit -m "chore: release X.Y.Z"`
 5. Tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
-6. GitHub Actions publishes to VSCode Marketplace
+6. GitHub Actions publishes to VS Code Marketplace **and Open VSX** (the
+   registry Positron pulls from). Requires `VSCE_PAT` and `OVSX_PAT`
+   secrets on the repo.
 
 ## Code of Conduct
 

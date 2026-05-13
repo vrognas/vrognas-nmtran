@@ -22,10 +22,10 @@ The NMTRAN extension is available for **VSCode** and **VSCode-based editors**, i
 
 **Install via Extensions View:**
 - Open your code editor
-- Make sure you have the latest version of the editor (requirement VSCode v1.102.0+)
+- Make sure you have a recent version (VS Code ≥ 1.109 / Positron ≥ 2026.04)
 - Open the Extensions View
 - Search for `NMTRAN` or `nonmem`
-- Click "Install" on the NMTRAN extension by vrognas
+- Click "Install" on the NMTRAN extension by vrognas (`vrognas.nmtran`)
 
 > [!TIP]
 > For an enhanced NMTRAN development experience, consider installing **[ErrorLens](https://github.com/usernamehw/vscode-error-lens)**.
@@ -85,6 +85,11 @@ The extension activates for these NONMEM-related file extensions:
 - **Control streams**: `.mod`, `.ctl`, `.modt`, `.ctl_dde`, `.dde`
 - **Output files**: `.lst`, `.ext`, `.cov`, `.cor`, `.coi`, `.cnv`, `.res`
 - **Special files**: `.phi`, `.scm`, `.grd`, `.shk`, `.shm`, `.smt`, `.rmt`, `.phm`
+
+Syntax highlighting, hover, go-to-definition, and folding work on all of
+them. **Real-time diagnostics (red/yellow squiggles) only fire on
+`.mod` and `.ctl`** — the other types are NONMEM-generated output or
+auxiliary files where validation would produce false positives.
 
 ## Community & support
 

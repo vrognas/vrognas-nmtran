@@ -67,20 +67,26 @@ NMTRAN is FORTRAN-based with special semantics for pharmacokinetic modeling:
 └─────────────────┘                      └─────────────────┘
 ```
 
-**Client** (`client/src/`): VSCode integration, folding
-**Server** (`server/src/`): Language intelligence via services
+**Client** (`client/src/`): VSCode integration, folding, public `NmtranApi`
+**Server** (`server/src/`): Language intelligence via services + validators
 
-| Service            | Responsibility                               |
-| ------------------ | -------------------------------------------- |
-| DocumentService    | Document caching and lifecycle               |
-| DiagnosticsService | Validation with 500ms debounce               |
-| HoverService       | Control record and parameter explanations    |
-| DefinitionService  | Go-to-definition, find-references            |
-| CompletionService  | Auto-completion suggestions                  |
-| FormattingService  | Document and range formatting                |
-| ParameterScanner   | THETA/ETA/EPS tracking, BLOCK matrix support |
+| Service / module      | Responsibility                                       |
+| --------------------- | ---------------------------------------------------- |
+| DocumentService       | Document caching and lifecycle                       |
+| DiagnosticsService    | Orchestrates validators, debounced 500ms (`.mod`/`.ctl` only) |
+| HoverService          | Control record and parameter explanations            |
+| DefinitionService     | Go-to-definition, find-references                    |
+| CompletionService     | Auto-completion suggestions                          |
+| FormattingService     | Document and range formatting                        |
+| ParameterScanner      | Emits `ParameterLocation[]` for the document         |
+| parsedModelService    | Builds `ParsedModel` for `nmtran/parsedModel` LSP request |
+| priorScanner          | Parses `$THETAP` / `$OMEGAP` / `$SIGMAP` records     |
+| nmtranExpression      | Tiny evaluator for typical-individual RHS values     |
+| `validators/*`        | One file per validator (sequentialNumbering, parameterReferences, blockMatrixSyntax, sameKeywordUsage, parameterBounds, comIndices, infinityTokens) |
+| `utils/errBinding`    | `ERR(n) → ETA / EPS` resolution (shared by hover, definition, parameter-references validator) |
+| `utils/text`, `utils/patterns` | Shared regex helpers (`stripComment`, `stripRecordPrefix`, `stripBlockPrefix`, `splitTopLevelCommas`, `RECORD_PATTERNS`, `BLOCK_RE`, `SAME_RE`, `createParameterReferenceRegex`) |
 
-**Data flow:** Document opened → cached → changes trigger debounced diagnostics → closed clears cache
+**Data flow:** Document opened → cached → changes trigger debounced diagnostics (only for `.mod`/`.ctl`) → closed clears cache. Parsing via `nmtran/parsedModel` / `nmtran/parseModelText` works on any registered extension.
 
 **Build:** `tsc -b` for type checking, `esbuild` bundles to `dist/` for production
 
@@ -88,7 +94,9 @@ NMTRAN is FORTRAN-based with special semantics for pharmacokinetic modeling:
 
 **Add control record**: Update `constants.ts` and `hoverInfo.ts`
 **Add service**: Follow DI pattern in `server/src/services/`, register in `server.ts`
-**Fix validation**: Modify `utils/validateControlRecords.ts`
+**Add validator**: Create `server/src/validators/<name>.ts` exporting `validateX(document)` that returns `ValidationResult`; wire it in `services/diagnosticsService.ts` via `pushPositional`
+**Fix control-record validation**: Modify `utils/validateControlRecords.ts`
+**Fix parameter validation**: Modify the matching file under `server/src/validators/`
 
 ## Constraints
 
