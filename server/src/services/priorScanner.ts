@@ -26,8 +26,6 @@
  * Pure / vscode-free / no IO — single text in, six Maps out.
  */
 
-import { stripComment } from '../utils/text';
-
 export interface PriorEntry {
   value: number;
   fix: boolean;
@@ -167,7 +165,7 @@ export function extractPriors(text: string): ParsedPriors {
           .split(';')[0] ?? '')
           .trim();
         if (afterHeader.length > 0) {
-          consumeBlockRow(afterHeader, lineNum, st, newKind, out, stripComment(raw));
+          consumeBlockRow(afterHeader, lineNum, st, newKind, out, raw);
         }
         // SAME with no values on the header — block rows are implicit
         // copies of the previous block; we don't track them for priors
@@ -229,7 +227,7 @@ export function extractPriors(text: string): ParsedPriors {
     if (mode === null) continue;
     const st = stateByKind[mode];
     if (st.blockRemaining > 0) {
-      consumeBlockRow(trimmed, lineNum, st, mode, out, stripComment(raw));
+      consumeBlockRow(trimmed, lineNum, st, mode, out, raw);
     }
   }
 

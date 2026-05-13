@@ -26,6 +26,19 @@ describe('extractPriors', () => {
     expect(r.thetaPriorVariances.get(2)?.value).toBeCloseTo(46.4, 1);
   });
 
+  it('captures inline comments on BLOCK-row continuation lines', () => {
+    const r = extractPriors(
+      [
+        '$PROBLEM x',
+        '$OMEGAP BLOCK(2) FIX',
+        ' 0.1 ; first diag IIV_CL',
+        ' 0 0.2 ; second diag IIV_V',
+      ].join('\n'),
+    );
+    expect(r.omegaPriors.get(1)?.comment).toBe('first diag IIV_CL');
+    expect(r.omegaPriors.get(2)?.comment).toBe('second diag IIV_V');
+  });
+
   it('parses $OMEGAP scalar + BLOCK forms, keeping diagonal elements only', () => {
     const r = extractPriors(
       [
