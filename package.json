@@ -45,7 +45,8 @@
   ],
   "main": "./dist/extension.js",
   "engines": {
-    "vscode": "^1.108.0",
+    "vscode": "^1.109.0",
+    "positron": "^2026.04.0",
     "node": ">=20.8.0"
   },
   "contributes": {
@@ -263,7 +264,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
-    "@types/vscode": "^1.108.0",
+    "@types/vscode": "~1.109.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.4.1",
     "esbuild": "^0.28.0",

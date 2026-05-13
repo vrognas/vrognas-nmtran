@@ -10,13 +10,13 @@
     "url": "https://github.com/vrognas/vscode-nmtran.git"
   },
   "engines": {
-    "vscode": "^1.102.0"
+    "vscode": "^1.109.0"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
-    "@types/vscode": "^1.108.0",
+    "@types/vscode": "~1.109.0",
     "@types/mocha": "^10.0.0",
     "@vscode/test-electron": "^2.4.1",
     "mocha": "^11.7.5"
