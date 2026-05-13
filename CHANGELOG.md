@@ -7,6 +7,31 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.28] - 2026-05-13
+
+### Changed
+
+Two follow-up consolidations after the Tier-2 sweep:
+
+* **Shared NMTRAN regex patterns** moved to `server/src/utils/patterns.ts`.
+  `ParameterScanner` and `definitionService` each had a private
+  `PARAMETER_PATTERNS` constant with the same five regexes (`THETA` /
+  `OMEGA` / `SIGMA` / `BLOCK` / `SAME`) and the same parameter-
+  reference pattern (kept as a source string in one file, pre-
+  compiled in the other). Both now spread from `RECORD_PATTERNS` +
+  `BLOCK_RE` / `SAME_RE` and mint fresh `/g` instances via the
+  shared `createParameterReferenceRegex()` factory. Existing
+  `PARAMETER_PATTERNS.THETA` call sites (50+ across the two files)
+  work unchanged.
+* **`splitTopLevelCommas`** added to `utils/text.ts` and replaces
+  `parsedModelService.splitBoundParts` and
+  `ParameterScanner.splitBoundComponents`. Behavior unified on the
+  preserve-empties contract so the NMTRAN `(lower,,upper)` (omitted
+  init) form parses to 3 components either side, and a malformed
+  `(low,init,up,)` now reports as 4 components in
+  `validateSingleParameterBound` rather than being silently coerced
+  to 3.
+
 ## [0.4.27] - 2026-05-13
 
 ### Changed
