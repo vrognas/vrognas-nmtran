@@ -23,3 +23,30 @@ export function stripRecordPrefix(line: string): string {
 export function stripBlockPrefix(line: string): string {
   return line.replace(/^BLOCK\(\d+\)\s*/i, '');
 }
+
+/**
+ * Split `content` on commas that are NOT inside parentheses. Empty
+ * components are preserved — `"low,,up"` → `["low", "", "up"]` — because
+ * NMTRAN `(lower,,upper)` (omitted init) is syntactically meaningful.
+ */
+export function splitTopLevelCommas(content: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let buf = '';
+  for (const ch of content) {
+    if (ch === '(') {
+      depth++;
+      buf += ch;
+    } else if (ch === ')') {
+      depth--;
+      buf += ch;
+    } else if (ch === ',' && depth === 0) {
+      parts.push(buf);
+      buf = '';
+    } else {
+      buf += ch;
+    }
+  }
+  parts.push(buf);
+  return parts;
+}

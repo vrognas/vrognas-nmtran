@@ -8,7 +8,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
+import { stripComment, stripRecordPrefix, stripBlockPrefix, splitTopLevelCommas } from '../utils/text';
 import {
   RECORD_PATTERNS,
   BLOCK_RE,
@@ -1243,7 +1243,7 @@ export class ParameterScanner {
     const content = boundExpr.substring(1, boundExpr.length - 1).trim();
     
     // Split by commas (but not inside nested parentheses)
-    const parts = this.splitBoundComponents(content);
+    const parts = splitTopLevelCommas(content);
     
     // OMEGA and SIGMA only support single values, not bounds
     if (paramType === 'OMEGA' || paramType === 'SIGMA') {
@@ -1333,38 +1333,6 @@ export class ParameterScanner {
     }
     
     return { isValid: errors.length === 0, errors };
-  }
-
-  /**
-   * Split bound components by commas, respecting nested parentheses
-   */
-  private static splitBoundComponents(content: string): string[] {
-    const parts = [];
-    let current = '';
-    let depth = 0;
-    
-    for (let i = 0; i < content.length; i++) {
-      const char = content.charAt(i);
-      
-      if (char === '(') {
-        depth++;
-        current += char;
-      } else if (char === ')') {
-        depth--;
-        current += char;
-      } else if (char === ',' && depth === 0) {
-        parts.push(current);
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-    
-    if (current.trim()) {
-      parts.push(current);
-    }
-    
-    return parts;
   }
 
   /**

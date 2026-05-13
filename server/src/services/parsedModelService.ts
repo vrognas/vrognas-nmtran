@@ -19,7 +19,7 @@ import {
 import { extractPriors, type PriorEntry } from './priorScanner';
 import { evaluate, EvalContext } from './nmtranExpression';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment } from '../utils/text';
+import { stripComment, splitTopLevelCommas } from '../utils/text';
 
 export function buildParsedModel(doc: TextDocument): ParsedModel {
   // Split on either LF or CRLF so individual line strings never carry a
@@ -106,7 +106,7 @@ function buildTheta(
   const comment = extractInlineComment(loc, allLocations, lines);
   const base = { index: loc.index, fix, line, ...(comment !== undefined ? { comment } : {}) };
   if (text.startsWith('(')) {
-    const parts = splitBoundParts(text.slice(1, -1)).map((p) => p.trim());
+    const parts = splitTopLevelCommas(text.slice(1, -1)).map((p) => p.trim());
     const nums = parts.map(parseFloatOrUndef);
     if (parts.length === 1) {
       return { ...base, init: nums[0]! };
@@ -224,28 +224,6 @@ function hasFixRange(loc: ParameterLocation, lines: string[]): boolean {
   return false;
 }
 
-/** Split bound expression on top-level commas; preserves empty middle-component (low,,up). */
-function splitBoundParts(content: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let buf = '';
-  for (const ch of content) {
-    if (ch === '(') {
-      depth++;
-      buf += ch;
-    } else if (ch === ')') {
-      depth--;
-      buf += ch;
-    } else if (ch === ',' && depth === 0) {
-      parts.push(buf);
-      buf = '';
-    } else {
-      buf += ch;
-    }
-  }
-  parts.push(buf);
-  return parts;
-}
 
 function parseFloatOrUndef(s: string): number | undefined {
   const t = s.trim();
