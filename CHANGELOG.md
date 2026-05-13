@@ -7,6 +7,49 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.33] - 2026-05-13
+
+### Changed
+
+Tier-A next-layer cleanups — six focused refactor commits, no behavior
+change. 260 → 255 server tests (5 dropped tests targeted code that was
+deleted along with its callers).
+
+* **`PerformanceMonitor` trimmed 160 → 33 LOC.** Only `.measure()` was
+  reached from production (one call site in `definitionService`); the
+  ring-buffer indexing was half-implemented and never wrapped;
+  `getStats` / `logStats` / `setEnabled` / `clear` all unused. Dropped
+  the unused `metadata` arg from the call site too.
+* **`DocumentService.getLines` + `linesCache` + `getAllDocumentUris`**
+  removed — both methods imported only by their own test file;
+  `linesCache` existed solely to back `getLines`.
+* **`HoverService` SAME resolvers collapsed.** Two near-identical
+  recursive walkers (`resolveSameKeyword` returning a formatted string,
+  `resolveSameKeywordWithReference` returning `{value, originalIndex}`)
+  merged into one `resolveSameOrigin` returning the latter; the caller
+  formats the final string itself.
+* **Misc service cleanups + `reservedVariables` migrated to
+  `constants.ts`.** Dropped the `createParameterUsageRegex` alias in
+  `definitionService` (use `createParameterReferenceRegex` directly);
+  removed the dead `_baseParameterCount` parameter from
+  `getParameterIndexFromCursorPosition`; `findUserVariableReferences`
+  now uses `stripComment` (consistent with the post-Tier-2 sweep).
+  `hoverService` dropped its inline `createControlRecordRegex` /
+  `createParameterUsageRegex` factories (the latter duplicated the
+  shared `createParameterReferenceRegex`). `reservedVariables` was a
+  dead `string[]` constant; it's now a `Record<string, string>` with
+  the 7 NONMEM-7.6 entries, consumed by `getReservedVariableHover`.
+* **`ScannerState` trimmed.** `blockMatrixSize`,
+  `blockDiagonalsSeen`, `blockElements` were written-only after the
+  Tier-3 validator extraction. Dropped; `BlockMatrixState` is now a
+  `Pick<ScannerState, …>` of the two fields it really shares.
+* **`validateControlRecords.ts` split.** Moved
+  `validateContinuationMarkers` to `validators/continuationMarkers.ts`
+  next to its siblings (return type now uses the shared
+  `ValidationResult`). Moved `buildDocumentSymbols` to
+  `services/documentSymbols.ts`. The leftover utility module now only
+  does what its name says.
+
 ## [0.4.32] - 2026-05-13
 
 ### Changed
