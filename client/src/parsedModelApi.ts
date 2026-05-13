@@ -14,6 +14,16 @@
 
 import * as vscode from 'vscode';
 
+/**
+ * LSP request method names. Mirrors the server-side constants in
+ * `server/src/parsedModel.ts`; duplicated here (along with the wire-
+ * format types below) so consumers don't need to reach into `server/`.
+ * The two definitions must stay in sync until both ends move to a
+ * shared package.
+ */
+export const PARSED_MODEL_REQUEST = 'nmtran/parsedModel';
+export const PARSE_MODEL_TEXT_REQUEST = 'nmtran/parseModelText';
+
 export interface NmtranThetaDecl {
   index: number;
   init: number;

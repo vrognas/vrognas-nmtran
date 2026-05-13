@@ -16,6 +16,7 @@ import {
 
 import { ConfigurationService } from '../config';
 import { Logger } from '../logger';
+import { PARSED_MODEL_REQUEST, PARSE_MODEL_TEXT_REQUEST } from '../parsedModelApi';
 
 export class LanguageServerManager {
   private client: LanguageClient | null = null;
@@ -139,7 +140,7 @@ export class LanguageServerManager {
   public async sendParsedModelRequest(uri: string): Promise<unknown | null> {
     if (!this.client || !this.client.isRunning()) return null;
     try {
-      return await this.client.sendRequest('nmtran/parsedModel', {
+      return await this.client.sendRequest(PARSED_MODEL_REQUEST, {
         textDocument: { uri },
       });
     } catch (error) {
@@ -158,7 +159,7 @@ export class LanguageServerManager {
   public async sendParseModelTextRequest(text: string): Promise<unknown | null> {
     if (!this.client || !this.client.isRunning()) return null;
     try {
-      return await this.client.sendRequest('nmtran/parseModelText', { text });
+      return await this.client.sendRequest(PARSE_MODEL_TEXT_REQUEST, { text });
     } catch (error) {
       this.logger.error('parseModelText request failed:', error);
       return null;
