@@ -9,6 +9,12 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
+import {
+  RECORD_PATTERNS,
+  BLOCK_RE,
+  SAME_RE,
+  createParameterReferenceRegex,
+} from '../utils/patterns';
 
 function createScannerState(): ScannerState {
   return {
@@ -50,19 +56,18 @@ interface BlockMatrixState {
   blockMatrixRemaining: number;
 }
 
-// Parameter patterns - compile once for better performance
+// File-local patterns merged with the shared ones from utils/patterns.
+// Compile once for better performance.
 const PARAMETER_PATTERNS = {
-  THETA: /^\$THETA(\s|$)/i,
-  OMEGA: /^\$OMEGA(\s|$)/i, 
-  SIGMA: /^\$SIGMA(\s|$)/i,
-  BLOCK: /BLOCK\((\d+)\)/i,
-  SAME: /\bSAME\b/i,
+  ...RECORD_PATTERNS,
+  BLOCK: BLOCK_RE,
+  SAME: SAME_RE,
   FIXED: /\b(FIX|FIXED)\b/gi,
   FIXED_CASE_INSENSITIVE: /\b(FIX|FIXED)\b/i,
   FIXED_START: /^(FIX|FIXED)\b/i,
   NUMERIC: /[\d\-+][\d\-+.eE]*/g,
   NUMERIC_SINGLE: /[\d\-+][\d\-+.eE]*/,
-  PARAMETER_REFERENCE: /\b(THETA|ETA|EPS|ERR)\((\d+)\)/gi,
+  PARAMETER_REFERENCE: createParameterReferenceRegex(),
   WHITESPACE: /\s/,
   WHITESPACE_OR_PAREN: /[\s(]/,
   PARAMETER_KEYWORDS: /\b(FIX|FIXED|STANDARD|VARIANCE|CORRELATION|CHOLESKY|DIAGONAL|SAME|VALUES|NAMES)\b/gi,

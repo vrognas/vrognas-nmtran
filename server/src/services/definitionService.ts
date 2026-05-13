@@ -12,19 +12,21 @@ import { ParameterScanner } from './ParameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
+import {
+  RECORD_PATTERNS,
+  BLOCK_RE,
+  SAME_RE,
+  createParameterReferenceRegex,
+} from '../utils/patterns';
 
-// Constants for consistent parameter pattern matching
 const PARAMETER_PATTERNS = {
-  THETA: /^\$THETA(\s|$)/i,
-  OMEGA: /^\$OMEGA(\s|$)/i,
-  SIGMA: /^\$SIGMA(\s|$)/i,
-  BLOCK: /BLOCK\((\d+)\)/i,
-  SAME: /\bSAME\b/i,
-  PARAMETER_USAGE_SOURCE: '\\b(THETA|ETA|EPS|ERR)\\((\\d+)\\)' // Source pattern without flags
+  ...RECORD_PATTERNS,
+  BLOCK: BLOCK_RE,
+  SAME: SAME_RE,
 } as const;
 
 // Factory function to create fresh regex instances to avoid state contamination
-const createParameterUsageRegex = () => new RegExp(PARAMETER_PATTERNS.PARAMETER_USAGE_SOURCE, 'gi');
+const createParameterUsageRegex = createParameterReferenceRegex;
 
 /** NONMEM array names handled by the parameter (THETA/ETA/EPS) path; user-variable lookup skips these. */
 const NONMEM_INDEXED_ARRAYS = new Set(['THETA', 'ETA', 'EPS', 'ERR', 'OMEGA', 'SIGMA']);
