@@ -64,14 +64,24 @@ function pushPositional(
 }
 
 /**
- * `.lst` (and other NONMEM-generated listing files) are registered as
- * `nmtran` for syntax highlighting but contain narrative output, not
- * source — running diagnostics on them produces noise like
- * `Did you mean $ABBREVIATED?` against output prose. Skip diagnostics
- * for these read-only file types.
+ * Diagnostics (user-visible squiggles / "Did you mean…" hints) only
+ * fire on actual NMTRAN source: `.mod` and `.ctl`. The `nmtran`
+ * language is registered for many other NONMEM-related extensions
+ * (`.lst`, `.modt`, `.ctl_dde`, `.dde`, `.scm`, `.res`, `.ext`,
+ * `.cov`, `.cor`, `.phi`, `.cnv`, `.grd`, `.shk`, `.shm`, `.smt`,
+ * `.rmt`, `.phm`, `.coi`) so they get syntax highlighting / hover /
+ * definition / completion / folding, but they're either output files
+ * or auxiliary formats where validation would produce false
+ * positives.
+ *
+ * IMPORTANT: this gate is ONLY for diagnostics. Other LSP features —
+ * including the public `nmtran/parsedModel` and `nmtran/parseModelText`
+ * requests that consumer extensions like positron-nonmem use — keep
+ * working on every registered extension. Parsing a `.lst` via the API
+ * is supported and intentional.
  */
-function isReadOnlyOutputFile(uri: string): boolean {
-  return /\.lst$/i.test(uri);
+function isDiagnosableSourceFile(uri: string): boolean {
+  return /\.(mod|ctl)$/i.test(uri);
 }
 
 export class DiagnosticsService {
@@ -86,7 +96,7 @@ export class DiagnosticsService {
    */
   async validateDocument(document: TextDocument): Promise<void> {
     try {
-      if (isReadOnlyOutputFile(document.uri)) {
+      if (!isDiagnosableSourceFile(document.uri)) {
         // Clear any stale diagnostics (e.g. file was renamed from .mod) and bail.
         this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
         return;

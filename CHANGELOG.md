@@ -7,6 +7,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.32] - 2026-05-13
+
+### Changed
+
+* **Diagnostics gate narrowed to `.mod` / `.ctl` only** (refines the
+  0.4.31 `.lst`-only fix into an allow-list). The `nmtran` language
+  is registered for many auxiliary NONMEM formats (`.lst`, `.modt`,
+  `.ctl_dde`, `.dde`, `.scm`, `.res`, `.ext`, `.cov`, `.cor`, `.phi`,
+  `.cnv`, `.grd`, `.shk`, `.shm`, `.smt`, `.rmt`, `.phm`, `.coi`) so
+  they get syntax highlighting / hover / definition / completion /
+  folding, but only true source files get user-surface validation.
+  IMPORTANT: this gate is only for diagnostics — the public
+  `nmtran/parsedModel` and `nmtran/parseModelText` LSP requests
+  continue to work on every registered extension, so consumer
+  extensions (e.g. positron-nonmem) can still parse `.lst` and other
+  output files programmatically.
+
 ## [0.4.31] - 2026-05-13
 
 ### Fixed
