@@ -1,33 +1,20 @@
 /**
- * ParameterScanner - Encapsulates parameter scanning logic
- * 
- * Breaks down the complex scanAllParameters method into smaller,
- * focused methods for better maintainability and testability.
+ * ParameterScanner — walks an NMTRAN document and emits a
+ * `ParameterLocation[]` describing every `THETA`/`ETA`/`EPS` declaration
+ * (with bounds, FIXED keywords, and BLOCK matrix context). Result is
+ * cached per (uri, version).
+ *
+ * Validators (sequential-numbering / references / block-matrix syntax /
+ * SAME usage / parameter bounds / COM indices / infinity-token misuse)
+ * live under `server/src/validators/` and consume either this output
+ * or the raw document directly. `resolveErrBinding` lives in
+ * `utils/errBinding.ts`.
  */
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
-import {
-  RECORD_PATTERNS,
-  BLOCK_RE,
-  SAME_RE,
-  createParameterReferenceRegex,
-} from '../utils/patterns';
-
-function createScannerState(): ScannerState {
-  return {
-    currentBlockType: null,
-    inBlockMatrix: false,
-    blockMatrixRemaining: 0,
-    blockMatrixSize: 0,
-    blockElementsSeen: 0,
-    blockDiagonalsSeen: 0,
-    blockElements: [],
-    counters: { THETA: 0, ETA: 0, EPS: 0 },
-    blockFixedKeywords: [],
-  };
-}
+import { RECORD_PATTERNS, BLOCK_RE, SAME_RE } from '../utils/patterns';
 
 export interface ParameterLocation {
   type: 'THETA' | 'ETA' | 'EPS';
@@ -55,8 +42,21 @@ interface BlockMatrixState {
   blockMatrixRemaining: number;
 }
 
+function createScannerState(): ScannerState {
+  return {
+    currentBlockType: null,
+    inBlockMatrix: false,
+    blockMatrixRemaining: 0,
+    blockMatrixSize: 0,
+    blockElementsSeen: 0,
+    blockDiagonalsSeen: 0,
+    blockElements: [],
+    counters: { THETA: 0, ETA: 0, EPS: 0 },
+    blockFixedKeywords: [],
+  };
+}
+
 // File-local patterns merged with the shared ones from utils/patterns.
-// Compile once for better performance.
 const PARAMETER_PATTERNS = {
   ...RECORD_PATTERNS,
   BLOCK: BLOCK_RE,
@@ -66,7 +66,6 @@ const PARAMETER_PATTERNS = {
   FIXED_START: /^(FIX|FIXED)\b/i,
   NUMERIC: /[\d\-+][\d\-+.eE]*/g,
   NUMERIC_SINGLE: /[\d\-+][\d\-+.eE]*/,
-  PARAMETER_REFERENCE: createParameterReferenceRegex(),
   WHITESPACE: /\s/,
   WHITESPACE_OR_PAREN: /[\s(]/,
   PARAMETER_KEYWORDS: /\b(FIX|FIXED|STANDARD|VARIANCE|CORRELATION|CHOLESKY|DIAGONAL|SAME|VALUES|NAMES)\b/gi,
