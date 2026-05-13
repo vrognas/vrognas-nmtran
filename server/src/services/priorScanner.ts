@@ -45,6 +45,8 @@ export interface ParsedPriors {
 }
 
 type Kind = 'thetaP' | 'thetaPV' | 'omegaP' | 'omegaPD' | 'sigmaP' | 'sigmaPD';
+/** Kinds whose values land directly in a per-index map (everything except *PD scalars). */
+type StoredKind = Exclude<Kind, 'omegaPD' | 'sigmaPD'>;
 
 const RECORD_RE = /^\s*\$([A-Za-z]+)\b/;
 const BLOCK_RE = /\bBLOCK\s*\(\s*(\d+)\s*\)/i;
@@ -83,8 +85,8 @@ interface KindState {
 
 /** Records the block-membership of each parameter for *P kinds — needed to map *PD scalars to per-parameter dfs. */
 interface BlockMembership {
-  /** Per-block: 1-based start index, size, and the line number of the header. */
-  blocks: { startIdx: number; size: number; line: number }[];
+  /** Per-block: 1-based start index and size. */
+  blocks: { startIdx: number; size: number }[];
 }
 
 /**
@@ -147,9 +149,9 @@ export function extractPriors(text: string): ParsedPriors {
       // Record block membership for *P kinds (used to expand *PD scalars).
       const blockSize = isBlock && blockMatch ? parseInt(blockMatch[1] ?? '1', 10) : 1;
       if (newKind === 'omegaP') {
-        omegaBlocks.blocks.push({ startIdx: st.nextIdx, size: blockSize, line: lineNum });
+        omegaBlocks.blocks.push({ startIdx: st.nextIdx, size: blockSize });
       } else if (newKind === 'sigmaP') {
-        sigmaBlocks.blocks.push({ startIdx: st.nextIdx, size: blockSize, line: lineNum });
+        sigmaBlocks.blocks.push({ startIdx: st.nextIdx, size: blockSize });
       }
 
       if (isBlock) {
@@ -239,15 +241,13 @@ export function extractPriors(text: string): ParsedPriors {
   return out;
 }
 
-function priorMapFor(kind: Kind, out: ParsedPriors): Map<number, PriorEntry> {
-  if (kind === 'thetaP') return out.thetaPriors;
-  if (kind === 'thetaPV') return out.thetaPriorVariances;
-  if (kind === 'omegaP') return out.omegaPriors;
-  if (kind === 'sigmaP') return out.sigmaPriors;
-  // *PD use omegaPriorDfs / sigmaPriorDfs but get populated via
-  // expandDfsToParams; this branch is unreachable for them.
-  if (kind === 'omegaPD') return out.omegaPriorDfs;
-  return out.sigmaPriorDfs;
+function priorMapFor(kind: StoredKind, out: ParsedPriors): Map<number, PriorEntry> {
+  switch (kind) {
+    case 'thetaP':  return out.thetaPriors;
+    case 'thetaPV': return out.thetaPriorVariances;
+    case 'omegaP':  return out.omegaPriors;
+    case 'sigmaP':  return out.sigmaPriors;
+  }
 }
 
 /**
