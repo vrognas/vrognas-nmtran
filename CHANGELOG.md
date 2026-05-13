@@ -7,6 +7,45 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.34] - 2026-05-13
+
+### Changed
+
+Tier-B next-layer rework — `DefinitionService` no longer duplicates
+`ParameterScanner`'s position-finding work. Routes through scanner output
+directly; no behavior change. **-910 LOC** net (1111 deletions, 201 insertions).
+
+* **Killed the parallel `scanCache`** in `DefinitionService` — the scanner
+  already caches per-(uri,version); the wrapper just shadowed it.
+* **Killed the `enhanceLocationsWithValuePositions` fill-in pass** plus its
+  helper stack: `getParameterPositionInLine`,
+  `calculateParameterPositionInBlock`, `findDiagonalElementPosition`,
+  `findDiagonalElementInText`, `findParameterValuePosition`,
+  `findThetaInitialValue`, `extractThetaExpressions`,
+  `findInitialValueInBoundedExpression`, `findOmegaParameterValue`,
+  `findSameKeywordPosition`. All ten functions duplicated logic the
+  scanner already runs while emitting `ParameterLocation`.
+* **Killed `countParametersInLine`** — replaced its callers with
+  `allParams.filter(p => p.line === lineNum && p.type === type).length`.
+* **`findSameReferenceLocation` rewritten** to walk backwards for the
+  preceding non-SAME `$OMEGA BLOCK(n)` line, then look up its first
+  emitted ETA in scanner output — instead of re-running the diagonal-
+  finder on raw text.
+* **`getParameterAtPosition` simplified.** Single decision tree: explicit
+  `THETA(n)`/`ETA(n)`/`EPS(n)` reference → param whose value range covers
+  the cursor → first param on the line → `$RECORD` header fallback to the
+  first emitted param of that type. Replaces the old definition-line /
+  continuation-line split plus the cursor-position helper.
+* **`DefinitionService` LOC: ~1180 → ~410.** No client-visible change to
+  Go-to-Definition or Find-References output.
+
+Test churn: 4 `block-highlighting.test.ts` cases that poked deleted
+private methods replaced with 3 public-API tests covering the same
+spacing variants through `provideDefinition`. 3 stub tests in
+`definitionService.test.ts` (BLOCK(3) diagonals, SAME reference, bounded
+THETA) gained real assertions. Net: 255 → 251 server tests, all green;
+e2e 5/5.
+
 ## [0.4.33] - 2026-05-13
 
 ### Changed

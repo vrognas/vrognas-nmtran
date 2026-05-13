@@ -30,27 +30,44 @@ describe('DefinitionService', () => {
 
     it('should handle BLOCK(3) diagonal elements correctly', async () => {
       const content = `$OMEGA  BLOCK(3)
-0.1    ; OMEGA(1,1)
-0.05 0.2   ; OMEGA(2,1) OMEGA(2,2) 
-0.01 0.03 0.15  ; OMEGA(3,1) OMEGA(3,2) OMEGA(3,3)`;
-      
+0.1
+0.05 0.2
+0.01 0.03 0.15`;
+
       const _doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-      
-      // The service should identify:
-      // ETA(1) -> line 1, value 0.1
-      // ETA(2) -> line 2, value 0.2 (second value)
-      // ETA(3) -> line 3, value 0.15 (third value)
+
+      // ETA(1) on line 1 (value 0.1).
+      const eta1 = await service.provideDefinition(_doc, Position.create(1, 0));
+      expect(eta1).not.toBeNull();
+      expect(eta1![0]!.range.start.line).toBe(1);
+
+      // ETA(2) on line 2 (second value 0.2, after off-diagonal 0.05).
+      const eta2 = await service.provideDefinition(_doc, Position.create(2, 5));
+      expect(eta2).not.toBeNull();
+      expect(eta2![0]!.range.start.line).toBe(2);
+      // The diagonal value '0.2' starts at char 5.
+      expect(eta2![0]!.range.start.character).toBe(5);
+
+      // ETA(3) on line 3 (third value 0.15, after two off-diagonals).
+      const eta3 = await service.provideDefinition(_doc, Position.create(3, 10));
+      expect(eta3).not.toBeNull();
+      expect(eta3![0]!.range.start.line).toBe(3);
+      expect(eta3![0]!.range.start.character).toBe(10);
     });
 
     it('should handle SAME references correctly', async () => {
-      const content = `$OMEGA  BLOCK(1) 0.0165           ; IOV CL
-$OMEGA  BLOCK(1)  SAME         ; IOV CL`;
-      
+      const content = `$OMEGA  BLOCK(1) 0.0165
+$OMEGA  BLOCK(1)  SAME`;
+
       const _doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-      
-      // When checking ETA with SAME, it should find both:
-      // 1. The SAME keyword
-      // 2. The referenced value 0.0165
+
+      // Cursor on the SAME keyword (line 1, char ~18).
+      const def = await service.provideDefinition(_doc, Position.create(1, 19));
+      expect(def).not.toBeNull();
+      // Two locations: the SAME keyword itself, and the referenced 0.0165 on line 0.
+      expect(def!.length).toBe(2);
+      const lines = def!.map(d => d.range.start.line).sort();
+      expect(lines).toEqual([0, 1]);
     });
 
     it('should handle mixed BLOCK and diagonal OMEGA', async () => {
@@ -96,13 +113,24 @@ Y = F + F*ERR(1)`;
     });
 
     it('should handle bounded THETA syntax', async () => {
-      const content = `$THETA (0.01, 0.5, 10)   ; Bounded CL
-$THETA 2.5 FIX           ; Fixed V`;
-      
+      const content = `$THETA (0.01, 0.5, 10)
+$THETA 2.5 FIX`;
+
       const _doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-      
-      // THETA(1) should point to 0.5 (initial value in bounded syntax)
-      // THETA(2) should point to 2.5
+
+      // THETA(1): cursor inside the bounded expression — definition spans the whole '(0.01, 0.5, 10)'.
+      const t1 = await service.provideDefinition(_doc, Position.create(0, 10));
+      expect(t1).not.toBeNull();
+      expect(t1!.length).toBeGreaterThanOrEqual(1);
+      expect(t1![0]!.range.start.line).toBe(0);
+      // The whole bounded expression: starts at '(' (char 7), ends after ')' (char 22).
+      expect(t1![0]!.range.start.character).toBe(7);
+      expect(t1![0]!.range.end.character).toBe(22);
+
+      // THETA(2): cursor on '2.5' — definition + FIX additional range.
+      const t2 = await service.provideDefinition(_doc, Position.create(1, 7));
+      expect(t2).not.toBeNull();
+      expect(t2!.length).toBe(2); // value range + FIX
     });
 
     it('should handle FIXED/FIX keywords with THETA parameters', async () => {
