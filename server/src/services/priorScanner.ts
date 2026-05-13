@@ -126,13 +126,13 @@ export function extractPriors(text: string): ParsedPriors {
   let mode: Kind | null = null;
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-    const raw = lines[lineNum];
+    const raw = lines[lineNum] ?? '';
     const trimmed = raw.trim();
     if (trimmed.startsWith(';') || trimmed.length === 0) continue;
 
     const recordMatch = trimmed.match(RECORD_RE);
     if (recordMatch) {
-      const kw = recordMatch[1];
+      const kw = recordMatch[1] ?? '';
       const newKind = kindForKeyword(kw);
       mode = newKind;
       if (newKind === null) continue;
@@ -148,7 +148,7 @@ export function extractPriors(text: string): ParsedPriors {
       st.blockHeaderLine = lineNum;
 
       // Record block membership for *P kinds (used to expand *PD scalars).
-      const blockSize = isBlock && blockMatch ? parseInt(blockMatch[1], 10) : 1;
+      const blockSize = isBlock && blockMatch ? parseInt(blockMatch[1] ?? '1', 10) : 1;
       if (newKind === 'omegaP') {
         omegaBlocks.blocks.push({ startIdx: st.nextIdx, size: blockSize, line: lineNum });
       } else if (newKind === 'sigmaP') {
@@ -160,12 +160,12 @@ export function extractPriors(text: string): ParsedPriors {
         st.blockRow = 0;
         // Any values on the header line itself are taken as the first
         // block row's values (rare but legal: `$OMEGAP BLOCK(2) 0.1 0 0.2`).
-        const afterHeader = trimmed
+        const afterHeader = (trimmed
           .replace(/^\$\w+/, '')
           .replace(/BLOCK\s*\([^)]*\)/i, '')
           .replace(/\bFIX(ED)?\b/i, '')
           .replace(/\bSAME\b/i, '')
-          .split(';')[0]
+          .split(';')[0] ?? '')
           .trim();
         if (afterHeader.length > 0) {
           consumeBlockRow(afterHeader, lineNum, st, newKind, out, stripComment(raw));
@@ -188,7 +188,7 @@ export function extractPriors(text: string): ParsedPriors {
       //   `$OMEGAPD 3 5 10` — 3 block DFs in one record
       // We extract all numeric tokens from the body and assign each to
       // successive indices.
-      const afterHeader = trimmed.replace(/^\$\w+/, '').split(';')[0].trim();
+      const afterHeader = (trimmed.replace(/^\$\w+/, '').split(';')[0] ?? '').trim();
       const cleaned = afterHeader.replace(/\bFIX(ED)?\b/gi, '').trim();
       const comment = extractComment(raw);
       const nums = parseNumbers(cleaned);
@@ -211,9 +211,11 @@ export function extractPriors(text: string): ParsedPriors {
       // present) attaches to the LAST value (NM-TRAN spec: `;` runs to
       // EOL so it follows every value before it on the line).
       for (let k = 0; k < nums.length; k++) {
+        const n = nums[k];
+        if (n === undefined) continue;
         const isLast = k === nums.length - 1;
         const entry: PriorEntry = {
-          value: nums[k],
+          value: n,
           fix: isFix,
           line: lineNum,
           ...(isLast && comment ? { comment } : {}),
@@ -275,6 +277,10 @@ function consumeBlockRow(
     return;
   }
   const diagonal = nums[diagIdx];
+  if (diagonal === undefined) {
+    st.blockRemaining = Math.max(0, st.blockRemaining - 1);
+    return;
+  }
   const comment = extractCommentRaw(rawLine);
   const entry: PriorEntry = {
     value: diagonal,
@@ -300,6 +306,7 @@ function expandDfsToParams(
   for (let i = 0; i < n; i++) {
     const block = blocks.blocks[i];
     const df = scalars[i];
+    if (!block || !df) continue;
     for (let k = 0; k < block.size; k++) {
       out.set(block.startIdx + k, df);
     }
