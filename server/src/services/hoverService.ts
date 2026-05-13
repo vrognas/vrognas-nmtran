@@ -156,11 +156,11 @@ export class HoverService {
       parameterValue = definitionLine.substring(definition.startChar, definition.endChar).trim();
     }
 
-    // Check if this is a SAME keyword and resolve it
+    // Check if this is a SAME keyword and resolve it back through the chain.
     if (parameterValue === 'SAME') {
-      const resolvedValue = this.resolveSameKeyword(definition, paramType, paramIndex, parameterLocations, lines);
-      if (resolvedValue) {
-        parameterValue = resolvedValue;
+      const resolved = this.resolveSameOrigin(paramType, paramIndex, parameterLocations, lines);
+      if (resolved) {
+        parameterValue = `${resolved.value} SAME as ${paramType}(${resolved.originalIndex})`;
       }
     }
 
@@ -201,85 +201,35 @@ export class HoverService {
   }
 
   /**
-   * Resolve SAME keyword by finding the previous parameter value
+   * Walk SAME-chains backward to the closest declared value of the same type.
+   * Returns `{value, originalIndex}` where `value` is the literal text of the
+   * referenced declaration and `originalIndex` is its 1-based parameter index.
+   * Returns null when no prior declared value exists (e.g. SAME with nothing
+   * to anchor to).
    */
-  private resolveSameKeyword(
-    _definition: ParameterLocation,
+  private resolveSameOrigin(
     paramType: string,
     paramIndex: number,
     parameterLocations: ParameterLocation[],
-    lines: string[]
-  ): string | null {
-    const sameTypeParams = parameterLocations.filter(loc => loc.type === paramType && loc.index < paramIndex);
-
-    if (sameTypeParams.length === 0) {
-      return null;
-    }
-
-    // Find the most recent parameter of the same type
-    const previousParam = sameTypeParams[sameTypeParams.length - 1];
-    if (!previousParam) {
-      return null;
-    }
-
-    const previousLine = lines[previousParam.line];
-
-    if (!previousLine || previousParam.startChar === undefined || previousParam.endChar === undefined) {
-      return null;
-    }
-
-    let previousValue = previousLine.substring(previousParam.startChar, previousParam.endChar).trim();
-    let originalParamIndex = previousParam.index;
-
-    // If the previous value is also SAME, recursively resolve it to find the original value
-    if (previousValue === 'SAME') {
-      const resolvedInfo = this.resolveSameKeywordWithReference(previousParam, paramType, previousParam.index, parameterLocations, lines);
-      if (resolvedInfo) {
-        previousValue = resolvedInfo.value;
-        originalParamIndex = resolvedInfo.originalIndex;
-      } else {
-        previousValue = 'SAME';
-      }
-    }
-
-    return `${previousValue} SAME as ${paramType}(${originalParamIndex})`;
-  }
-
-  /**
-   * Helper method to resolve SAME keyword and track the original parameter index
-   */
-  private resolveSameKeywordWithReference(
-    _definition: ParameterLocation,
-    paramType: string,
-    paramIndex: number,
-    parameterLocations: ParameterLocation[],
-    lines: string[]
+    lines: string[],
   ): { value: string; originalIndex: number } | null {
-    const sameTypeParams = parameterLocations.filter(loc => loc.type === paramType && loc.index < paramIndex);
-
-    if (sameTypeParams.length === 0) {
-      return null;
-    }
-
-    // Find the most recent parameter of the same type
+    const sameTypeParams = parameterLocations.filter(
+      loc => loc.type === paramType && loc.index < paramIndex,
+    );
     const previousParam = sameTypeParams[sameTypeParams.length - 1];
-    if (!previousParam) {
-      return null;
-    }
+    if (!previousParam) return null;
 
     const previousLine = lines[previousParam.line];
-
-    if (!previousLine || previousParam.startChar === undefined || previousParam.endChar === undefined) {
-      return null;
-    }
+    if (
+      !previousLine ||
+      previousParam.startChar === undefined ||
+      previousParam.endChar === undefined
+    ) return null;
 
     const previousValue = previousLine.substring(previousParam.startChar, previousParam.endChar).trim();
-
-    // If the previous value is also SAME, recursively resolve it
     if (previousValue === 'SAME') {
-      return this.resolveSameKeywordWithReference(previousParam, paramType, previousParam.index, parameterLocations, lines);
+      return this.resolveSameOrigin(paramType, previousParam.index, parameterLocations, lines);
     }
-
     return { value: previousValue, originalIndex: previousParam.index };
   }
 
