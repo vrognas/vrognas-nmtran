@@ -29,28 +29,22 @@ export interface ScannerState {
   currentBlockType: 'THETA' | 'ETA' | 'EPS' | null;
   inBlockMatrix: boolean;
   blockMatrixRemaining: number;
-  blockMatrixSize: number;
+  /** Cumulative count of values seen so far in the current BLOCK — used to map array position → diagonal element. */
   blockElementsSeen: number;
-  blockDiagonalsSeen: number;
-  blockElements: string[];
   counters: { THETA: number; ETA: number; EPS: number };
-  blockFixedKeywords: Array<{ startChar: number; endChar: number; line: number }>; // FIXED keywords for current block
+  /** FIXED keyword ranges captured on the BLOCK header line, propagated to each diagonal. */
+  blockFixedKeywords: Array<{ startChar: number; endChar: number; line: number }>;
 }
 
-interface BlockMatrixState {
-  inBlockMatrix: boolean;
-  blockMatrixRemaining: number;
-}
+/** Subset of ScannerState used as the return type of `detectBlockMatrix`. */
+type BlockMatrixState = Pick<ScannerState, 'inBlockMatrix' | 'blockMatrixRemaining'>;
 
 function createScannerState(): ScannerState {
   return {
     currentBlockType: null,
     inBlockMatrix: false,
     blockMatrixRemaining: 0,
-    blockMatrixSize: 0,
     blockElementsSeen: 0,
-    blockDiagonalsSeen: 0,
-    blockElements: [],
     counters: { THETA: 0, ETA: 0, EPS: 0 },
     blockFixedKeywords: [],
   };
@@ -172,10 +166,7 @@ export class ParameterScanner {
       const matrixState = this.detectBlockMatrix(lineWithoutComment);
       state.inBlockMatrix = matrixState.inBlockMatrix;
       state.blockMatrixRemaining = matrixState.blockMatrixRemaining;
-      const blockMatch = lineWithoutComment.match(PARAMETER_PATTERNS.BLOCK);
-      state.blockMatrixSize = blockMatch && blockMatch[1] ? parseInt(blockMatch[1], 10) : 0;
       state.blockElementsSeen = 0;
-      state.blockDiagonalsSeen = 0;
       state.blockFixedKeywords = [];
       if (state.inBlockMatrix) {
         this.detectBlockFixedKeywords(lineWithoutComment, lineNum, state);
@@ -347,9 +338,8 @@ export class ParameterScanner {
     if (state.inBlockMatrix && state.blockMatrixRemaining <= 0) {
       state.inBlockMatrix = false;
       state.blockElementsSeen = 0;
-      state.blockDiagonalsSeen = 0;
     }
-    
+
     return locations;
   }
 
@@ -507,9 +497,8 @@ export class ParameterScanner {
     state.blockElementsSeen += allValuesOnLine.length;
     
     // Update diagonal count and block remaining  
-    state.blockDiagonalsSeen += diagonalsFound;
     state.blockMatrixRemaining -= diagonalsFound;
-    
+
     return locations;
   }
 
