@@ -101,32 +101,28 @@ export class DefinitionService {
    * For SAME constraints, shows both the SAME line and the referenced value
    */
   async provideDefinition(document: TextDocument, position: Position): Promise<Location[] | null> {
-    return this.performanceMonitor.measure(
-      'provideDefinition',
-      async () => {
-        try {
-          const parameter = this.getParameterAtPosition(document, position);
-          if (parameter) {
-            const definitionLocations = this.findAllDefinitionLocations(document, parameter);
-            return definitionLocations.length > 0 ? definitionLocations : null;
-          }
-
-          // Fallback: user-defined variable (LHS of `name = rhs` inside an
-          // abbreviated-code block — $PRED / $PK / $ERROR / $DES / …).
-          const userVar = this.getUserVariableAtPosition(document, position);
-          if (userVar) {
-            const loc = this.findUserVariableDefinition(document, userVar);
-            return loc ? [loc] : null;
-          }
-
-          return null;
-        } catch (error) {
-          this.connection.console.error(`❌ Error in definition provider: ${error}`);
-          return null;
+    return this.performanceMonitor.measure('provideDefinition', async () => {
+      try {
+        const parameter = this.getParameterAtPosition(document, position);
+        if (parameter) {
+          const definitionLocations = this.findAllDefinitionLocations(document, parameter);
+          return definitionLocations.length > 0 ? definitionLocations : null;
         }
-      },
-      { documentUri: document.uri, position }
-    );
+
+        // Fallback: user-defined variable (LHS of `name = rhs` inside an
+        // abbreviated-code block — $PRED / $PK / $ERROR / $DES / …).
+        const userVar = this.getUserVariableAtPosition(document, position);
+        if (userVar) {
+          const loc = this.findUserVariableDefinition(document, userVar);
+          return loc ? [loc] : null;
+        }
+
+        return null;
+      } catch (error) {
+        this.connection.console.error(`❌ Error in definition provider: ${error}`);
+        return null;
+      }
+    });
   }
 
   /**
