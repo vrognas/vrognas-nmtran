@@ -8,8 +8,6 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ParameterFactory } from '../factories/parameterFactory';
-import { ParameterValidator } from '../utils/parameterValidator';
-import { ErrorHandler } from '../utils/errorHandler';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 
 export interface ParameterLocation {
@@ -107,32 +105,13 @@ export class ParameterScanner {
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
       if (!line) continue;
-      
-      // Validate line before processing
-      const lineValidation = ParameterValidator.validateParameterLine(line);
-      if (!lineValidation.isValid) {
-        ErrorHandler.logWarning(
-          `Skipping invalid line: ${lineValidation.errors.join(', ')}`,
-          { operation: 'scanDocument', lineNumber: lineNum }
-        );
-        continue;
-      }
-      
+
       const trimmed = line.trim();
       if (this.shouldSkipLine(trimmed)) continue;
-      
+
       // Update state based on control record
       this.updateStateForControlRecord(trimmed, state, lineNum);
-      
-      // Validate state consistency
-      const stateValidation = ParameterValidator.validateScannerState(state);
-      if (!stateValidation.isValid) {
-        ErrorHandler.logWarning(
-          `Scanner state validation failed: ${stateValidation.errors.join(', ')}`,
-          { operation: 'scanDocument', lineNumber: lineNum }
-        );
-      }
-      
+
       // Process parameters if in a parameter block
       if (state.currentBlockType) {
         const lineLocations = this.processParameterLine(
