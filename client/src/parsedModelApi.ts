@@ -45,6 +45,23 @@ export interface NmtranEquation {
   value: number | undefined;
 }
 
+/**
+ * `$PRIOR` record entry (`$THETAP` / `$THETAPV` / `$OMEGAP` / `$OMEGAPD`
+ * / `$SIGMAP` / `$SIGMAPD`). Indexed per-kind 1-based to align with the
+ * matching `$THETA(i)` / `$OMEGA(i,i)` / `$SIGMA(i,i)` declarations.
+ * Available from 0.4.23.
+ */
+export interface NmtranPriorDecl {
+  index: number;
+  /** Numeric value: mean (`*P`), variance (`*PV`), or degrees of freedom (`*PD`). */
+  value: number;
+  fix: boolean;
+  /** 0-based line number of the declaration in the source. */
+  line: number;
+  /** Inline `;<comment>` text. */
+  comment?: string;
+}
+
 export interface NmtranParsedModel {
   dataFile: string | null;
   inputColumns: string[];
@@ -52,6 +69,18 @@ export interface NmtranParsedModel {
   omegas: NmtranOmegaSigmaDecl[];
   sigmas: NmtranOmegaSigmaDecl[];
   equations: NmtranEquation[];
+  /** $THETAP — prior MEANS for THETA (NWPRI normal prior). Empty when absent. Available ≥ 0.4.23. */
+  thetaPriors: NmtranPriorDecl[];
+  /** $THETAPV — diagonal of the prior variance for $THETAP. Available ≥ 0.4.23. */
+  thetaPriorVariances: NmtranPriorDecl[];
+  /** $OMEGAP — prior MODE for OMEGA (inverse-Wishart prior). Diagonals only. Available ≥ 0.4.23. */
+  omegaPriors: NmtranPriorDecl[];
+  /** $OMEGAPD — degrees of freedom for OMEGA prior, expanded per-parameter. Available ≥ 0.4.23. */
+  omegaPriorDfs: NmtranPriorDecl[];
+  /** $SIGMAP — analogous to $OMEGAP. Available ≥ 0.4.23. */
+  sigmaPriors: NmtranPriorDecl[];
+  /** $SIGMAPD — degrees of freedom for SIGMA prior. Available ≥ 0.4.23. */
+  sigmaPriorDfs: NmtranPriorDecl[];
 }
 
 export interface NmtranApi {
