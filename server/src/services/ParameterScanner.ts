@@ -1173,12 +1173,12 @@ export class ParameterScanner {
 
   /**
    * Given a 1-indexed flat position in a lower-triangular BLOCK matrix, is it a diagonal?
-   * Positions 1,3,6,10,... (triangular numbers) are diagonals.
+   * Positions 1,3,6,10,... (triangular numbers) are diagonals. Delegates to
+   * `NMTRANMatrixParser.isDiagonalElement` (0-indexed) — one diagonal-position
+   * implementation across the codebase.
    */
   private static isBlockDiagonalPosition(oneIndexedCount: number): boolean {
-    const r = Math.ceil((-1 + Math.sqrt(1 + 8 * oneIndexedCount)) / 2);
-    const posInRow = oneIndexedCount - (r * (r - 1)) / 2;
-    return posInRow === r;
+    return NMTRANMatrixParser.isDiagonalElement(oneIndexedCount - 1) !== null;
   }
 
   /**
