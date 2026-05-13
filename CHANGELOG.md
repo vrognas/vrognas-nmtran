@@ -7,6 +7,25 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.30] - 2026-05-13
+
+### Changed
+
+* **diagnosticsService**: collapsed 7 near-identical
+  `if (!result.isValid) { for (const e of result.errors) { … push(Diagnostic literal) } }`
+  blocks into two helpers (`toPositionalDiagnostic`,
+  `toFileDiagnostic`) and a `pushPositional(diagnostics, result,
+  severity?)` wrapper. Each validator call is now one line, severity
+  is a parameter rather than a copy/paste, and
+  `validateContinuationMarkers`'s inline-typed result flows through
+  the same path via structural typing. -90 LOC net.
+* **ParameterScanner.updateStateForControlRecord**: merged the
+  OMEGA and SIGMA branches — they differed only in whether the
+  parameter-array counter advances as ETA or EPS. One ternary covers
+  the difference; the surrounding block-state setup runs once. -15 LOC.
+
+260 server tests + 5 vscode-test e2e tests unchanged.
+
 ## [0.4.29] - 2026-05-13
 
 ### Changed
