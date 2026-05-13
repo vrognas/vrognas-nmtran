@@ -7,6 +7,39 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.29] - 2026-05-13
+
+### Changed
+
+Tier-3 refactor: split the `ParameterScanner` god-class into a scanner
++ one module per validator. ParameterScanner.ts went from ~1250 LOC to
+~760 LOC and now does one job — produce a `ParameterLocation[]`.
+
+New layout under `server/src/`:
+
+* `validators/types.ts` — shared `ValidationError` / `ValidationResult`.
+* `validators/sequentialNumbering.ts` — pure check over the scanner output.
+* `validators/parameterReferences.ts` — THETA(n)/ETA(n)/EPS(n)/ERR(n)
+  cross-reference + unused-decl check.
+* `validators/blockMatrixSyntax.ts` — `$OMEGA BLOCK(n)` / `$SIGMA
+  BLOCK(n)` element-count + SAME validation.
+* `validators/sameKeywordUsage.ts` — SAME outside BLOCK context.
+* `validators/parameterBounds.ts` — THETA bound triples + OMEGA/SIGMA
+  variance values (with their `extractBoundExpressions` / `isInfinity`
+  / `parseNumericValue` / `extractSimpleParameterValues` helpers
+  inlined per-validator).
+* `validators/comIndices.ts` — `COM(i)` vs `$ABBREV COMRES+COMSAV`.
+* `validators/infinityTokens.ts` — `INF`/`INFINITY`/`INFIN`/`INFTY`
+  misuse outside `$THETA` bounds.
+* `utils/errBinding.ts` — `resolveErrBinding` (also called by
+  hoverService and definitionService for ERR → ETA/EPS resolution).
+
+The diagnostics service now imports each validator by name; tests do
+too. `ParameterScanner.scanDocument` and `ParameterScanner.clearCache`
+remain the only externally-reached methods on the class. Two
+stateful `RegExp.prototype` iteration loops became `for-of matchAll(...)`
+along the way. 260 server tests + 5 vscode-test e2e tests unchanged.
+
 ## [0.4.28] - 2026-05-13
 
 ### Changed
