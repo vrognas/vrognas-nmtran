@@ -19,9 +19,6 @@ export default defineConfig({
         'services/completionService.ts',
         'services/diagnosticsService.ts',
         'services/formattingService.ts',
-        'parsers/**',
-        'factories/**',
-        'utils/validation.ts',
         'utils/performanceMonitor.ts'
       ],
       thresholds: { branches: 80, functions: 80, lines: 80, statements: 80 }
