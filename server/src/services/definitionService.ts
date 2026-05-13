@@ -11,7 +11,7 @@ import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ParameterScanner } from './ParameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment } from '../utils/text';
+import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
 
 // Constants for consistent parameter pattern matching
 const PARAMETER_PATTERNS = {
@@ -427,8 +427,7 @@ export class DefinitionService {
     const codePart = stripComment(line);
     
     // Remove control record prefix (e.g., $OMEGA) and BLOCK(n) pattern if present
-    let contentPart = codePart.replace(/^\s*\$\w+\s*/i, '');
-    contentPart = contentPart.replace(/^BLOCK\(\d+\)\s*/i, ''); // Remove BLOCK(n) to avoid matching the number
+    const contentPart = stripBlockPrefix(stripRecordPrefix(codePart));
     
     // Find all numeric values (including scientific notation)
     const numericPattern = /[\d\-+][\d\-+.eE]*/g;
@@ -484,7 +483,7 @@ export class DefinitionService {
     const codePart = stripComment(line);
     
     // Remove control record prefix (e.g., $THETA)
-    const contentPart = codePart.replace(/^\s*\$\w+\s*/i, '');
+    const contentPart = stripRecordPrefix(codePart);
     const searchOffset = codePart.length - contentPart.length;
     
     // Find all parameter expressions (bounded or standalone)

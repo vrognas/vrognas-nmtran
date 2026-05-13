@@ -8,7 +8,7 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment } from '../utils/text';
+import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
 
 function createScannerState(): ScannerState {
   return {
@@ -62,18 +62,10 @@ const PARAMETER_PATTERNS = {
   FIXED_START: /^(FIX|FIXED)\b/i,
   NUMERIC: /[\d\-+][\d\-+.eE]*/g,
   NUMERIC_SINGLE: /[\d\-+][\d\-+.eE]*/,
-  CONTROL_RECORD: /^\s*\$\w+\s*/i,
-  COMMENT: /;.*$/,
-  COMMENT_END: /;.*$/,
   PARAMETER_REFERENCE: /\b(THETA|ETA|EPS|ERR)\((\d+)\)/gi,
   WHITESPACE: /\s/,
   WHITESPACE_OR_PAREN: /[\s(]/,
-  BLOCK_INLINE: /^\s*\$\w+\s+BLOCK\(\d+\)\s*/i,
-  OMEGA_BLOCK_PREFIX: /^\$OMEGA\s+BLOCK\(\d+\)\s*/i,
-  SIGMA_BLOCK_PREFIX: /^\$SIGMA\s+BLOCK\(\d+\)\s*/i,
-  BLOCK_PREFIX: /^BLOCK\(\d+\)\s*/i,
   PARAMETER_KEYWORDS: /\b(FIX|FIXED|STANDARD|VARIANCE|CORRELATION|CHOLESKY|DIAGONAL|SAME|VALUES|NAMES)\b/gi,
-  COMMENT_START: /^;/
 } as const;
 
 export class ParameterScanner {
@@ -268,9 +260,7 @@ export class ParameterScanner {
     // For BLOCK matrices, first count all numeric values on this line
     let allValuesOnLine: string[] = [];
     if (state.inBlockMatrix) {
-      const cleanLine = trimmed.replace(PARAMETER_PATTERNS.CONTROL_RECORD, '')
-                               .replace(/BLOCK\(\d+\)\s*/i, '')
-                               .replace(PARAMETER_PATTERNS.COMMENT, '');
+      const cleanLine = stripBlockPrefix(stripRecordPrefix(stripComment(trimmed)));
       const matches = cleanLine.match(PARAMETER_PATTERNS.NUMERIC);
       allValuesOnLine = matches || [];
       
@@ -442,13 +432,9 @@ export class ParameterScanner {
     // Remove comments
     const contentPart = stripComment(line);
     
-    // Remove control record prefix
-    let cleanedPrefix = contentPart.replace(/^\s*\$\w+\s*/i, '');
-    
-    // Remove BLOCK(n) pattern for BLOCK(1) parameters that are treated as regular
-    cleanedPrefix = cleanedPrefix.replace(/^BLOCK\(\d+\)\s*/i, '');
-    
-    // Remove parameter keywords but keep numeric values
+    // Remove control record prefix + BLOCK(n) (BLOCK(1) decls land here too);
+    // then strip parameter keywords while keeping numeric values.
+    const cleanedPrefix = stripBlockPrefix(stripRecordPrefix(contentPart));
     return cleanedPrefix.replace(PARAMETER_PATTERNS.PARAMETER_KEYWORDS, '').trim();
   }
 
