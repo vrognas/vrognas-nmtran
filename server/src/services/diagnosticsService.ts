@@ -63,6 +63,17 @@ function pushPositional(
   for (const error of result.errors) diagnostics.push(toPositionalDiagnostic(error, severity));
 }
 
+/**
+ * `.lst` (and other NONMEM-generated listing files) are registered as
+ * `nmtran` for syntax highlighting but contain narrative output, not
+ * source — running diagnostics on them produces noise like
+ * `Did you mean $ABBREVIATED?` against output prose. Skip diagnostics
+ * for these read-only file types.
+ */
+function isReadOnlyOutputFile(uri: string): boolean {
+  return /\.lst$/i.test(uri);
+}
+
 export class DiagnosticsService {
   private connection: Connection;
 
@@ -75,6 +86,12 @@ export class DiagnosticsService {
    */
   async validateDocument(document: TextDocument): Promise<void> {
     try {
+      if (isReadOnlyOutputFile(document.uri)) {
+        // Clear any stale diagnostics (e.g. file was renamed from .mod) and bail.
+        this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+        return;
+      }
+
       const text = document.getText();
       const diagnostics: Diagnostic[] = [];
 

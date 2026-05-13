@@ -7,6 +7,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.31] - 2026-05-13
+
+### Fixed
+
+* **No diagnostics in `.lst` files**: `.lst` (and similar NONMEM listing
+  files) are registered as `nmtran` for syntax highlighting, but their
+  content is narrative output — strings like "$ABBR DERIV2=NO" in
+  prose were triggering "Did you mean $ABBREVIATED?" false-positives
+  on read-only output. DiagnosticsService now early-returns for
+  `.lst` URIs and clears any stale diagnostics on the document.
+
 ## [0.4.30] - 2026-05-13
 
 ### Changed
