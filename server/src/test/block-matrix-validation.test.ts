@@ -6,6 +6,7 @@
  */
 
 import { ParameterScanner } from '../services/ParameterScanner';
+import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
 import { createDocument } from './test-helpers';
 
 describe('BLOCK Matrix Validation', () => {
@@ -196,7 +197,7 @@ $OMEGA BLOCK(2) 0.1 0.05 0.2
 $OMEGA BLOCK(2) SAME
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateSameKeywordUsage(document);
+      const validation = validateSameKeywordUsage(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -208,7 +209,7 @@ $OMEGA 0.1
 $OMEGA SAME  ; Invalid - SAME without BLOCK
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateSameKeywordUsage(document);
+      const validation = validateSameKeywordUsage(document);
       
       expect(validation.isValid).toBe(false);
       expect(validation.errors).toHaveLength(1);
@@ -223,7 +224,7 @@ $SIGMA BLOCK(2) 0.01 0.005 0.02
 $SIGMA BLOCK(2) SAME
 `;
       const document = createDocument(content);
-      const validation = ParameterScanner.validateSameKeywordUsage(document);
+      const validation = validateSameKeywordUsage(document);
       
       expect(validation.isValid).toBe(true);
       expect(validation.errors).toHaveLength(0);

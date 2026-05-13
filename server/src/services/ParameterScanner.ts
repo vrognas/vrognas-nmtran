@@ -7,7 +7,6 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
-import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 import { stripComment, stripRecordPrefix, stripBlockPrefix, splitTopLevelCommas } from '../utils/text';
 import {
   RECORD_PATTERNS,
@@ -654,35 +653,6 @@ export class ParameterScanner {
   }
 
   /**
-   * Validate sequential parameter numbering (THETA/ETA/EPS must be 1,2,3... with no gaps)
-   */
-  static validateSequentialNumbering(parameters: ParameterLocation[]): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    const groups: Record<'THETA' | 'ETA' | 'EPS', number[]> = { THETA: [], ETA: [], EPS: [] };
-    
-    // Group parameters by type and collect indices
-    for (const param of parameters) {
-      groups[param.type].push(param.index);
-    }
-    
-    // Check each parameter type for sequential numbering
-    for (const [type, indices] of Object.entries(groups)) {
-      if (indices.length === 0) continue;
-      
-      const sorted = [...indices].sort((a, b) => a - b);
-      const expected = Array.from({ length: sorted.length }, (_, i) => i + 1);
-      
-      for (let i = 0; i < expected.length; i++) {
-        if (sorted[i] !== expected[i]) {
-          errors.push(`Missing ${type}(${expected[i]}) - parameters must be sequential with no gaps`);
-        }
-      }
-    }
-    
-    return { isValid: errors.length === 0, errors };
-  }
-
-  /**
    * Validate parameter references against definitions (optimized version with pre-scanned parameters)
    */
   static validateParameterReferencesWithParameters(
@@ -1040,51 +1010,6 @@ export class ParameterScanner {
   }
 
   /**
-   * Validate SAME keyword usage in BLOCK context
-   */
-  static validateSameKeywordUsage(document: TextDocument): { 
-    isValid: boolean; 
-    errors: Array<{ message: string; line: number; startChar: number; endChar: number }> 
-  } {
-    const errors: Array<{ message: string; line: number; startChar: number; endChar: number }> = [];
-    const lines = document.getText().split('\n');
-    
-    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-      const line = lines[lineNum];
-      if (!line) continue;
-      
-      const trimmed = line.trim();
-      if (trimmed.startsWith(';')) continue; // Skip comments
-      
-      // Remove inline comments
-      const lineWithoutComment = stripComment(trimmed).trim();
-      
-      // Check for SAME keyword usage
-      if (PARAMETER_PATTERNS.SAME.test(lineWithoutComment)) {
-        const sameMatch = lineWithoutComment.match(PARAMETER_PATTERNS.SAME);
-        if (sameMatch) {
-          // Check if SAME is used in a valid BLOCK context
-          const isInBlockDeclaration = /^\$\w+\s+BLOCK\(\d+\)\s+.*SAME/i.test(lineWithoutComment);
-          const isStandaloneBlock = /^\$\w+\s+BLOCK\(\d+\)\s+SAME\s*$/i.test(lineWithoutComment);
-          
-          if (!isInBlockDeclaration && !isStandaloneBlock) {
-            // SAME used outside proper BLOCK context
-            const startPos = line.indexOf(sameMatch[0]);
-            errors.push({
-              message: `SAME keyword should only be used with BLOCK matrices to reference previous block structure`,
-              line: lineNum,
-              startChar: startPos,
-              endChar: startPos + sameMatch[0].length
-            });
-          }
-        }
-      }
-    }
-    
-    return { isValid: errors.length === 0, errors };
-  }
-
-  /**
    * Validate parameter bounds for THETA, OMEGA, and SIGMA parameters
    */
   static validateParameterBounds(document: TextDocument): {
@@ -1434,116 +1359,4 @@ export class ParameterScanner {
     return { isValid: errors.length === 0, errors };
   }
 
-  /**
-   * Detect COM(i) references whose index exceeds COMRES+COMSAV declared in $ABBREV.
-   * NONMEM's COM array is shared across blocks; writing past the declared size
-   * silently overflows into other data.
-   */
-  static validateComIndices(document: TextDocument): {
-    isValid: boolean;
-    errors: Array<{ message: string; line: number; startChar: number; endChar: number }>
-  } {
-    const errors: Array<{ message: string; line: number; startChar: number; endChar: number }> = [];
-    const lines = document.getText().split('\n');
-
-    const ABBR_RE = /^\$ABBR(EV)?\b/i;
-    const COMRES_RE = /\bCOMRES\s*=\s*(\d+)/i;
-    const COMSAV_RE = /\bCOMSAV\s*=\s*(\d+)/i;
-
-    let comres = 0;
-    let comsav = 0;
-    let declared = false;
-
-    for (const rawLine of lines) {
-      const trimmed = rawLine.trim();
-      if (!trimmed || trimmed.startsWith(';')) continue;
-      if (!ABBR_RE.test(trimmed)) continue;
-      const line = stripComment(trimmed);
-      const r = line.match(COMRES_RE);
-      const s = line.match(COMSAV_RE);
-      if (r) { comres = Math.max(comres, parseInt(r[1]!, 10)); declared = true; }
-      if (s) { comsav = Math.max(comsav, parseInt(s[1]!, 10)); declared = true; }
-    }
-
-    if (!declared) return { isValid: true, errors };
-
-    const maxAllowed = comres + comsav;
-    const COM_REF = /\bCOM\s*\(\s*(\d+)\s*\)/gi;
-
-    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-      const rawLine = lines[lineNum];
-      if (!rawLine) continue;
-      const scanLine = stripComment(rawLine);
-
-      COM_REF.lastIndex = 0;
-      let match;
-      while ((match = COM_REF.exec(scanLine)) !== null) {
-        const idx = parseInt(match[1]!, 10);
-        if (idx > maxAllowed) {
-          errors.push({
-            message: `COM(${idx}) exceeds COMRES+COMSAV (${comres}+${comsav}=${maxAllowed}) declared in $ABBREV`,
-            line: lineNum,
-            startChar: match.index!,
-            endChar: match.index! + match[0].length
-          });
-        }
-      }
-    }
-
-    return { isValid: errors.length === 0, errors };
-  }
-
-  /**
-   * Detect misuse of infinity tokens (INF/INFINITY/INFIN/INFTY) in abbreviated code.
-   * These are lexical tokens recognized ONLY inside $THETA bound triples. Using them
-   * as identifiers in $PK/$PRED/$ERROR/etc. produces NMTRAN ERROR 208 (UNDEFINED VARIABLE).
-   */
-  static validateInfinityTokenUsage(document: TextDocument): {
-    isValid: boolean;
-    errors: Array<{ message: string; line: number; startChar: number; endChar: number }>
-  } {
-    const errors: Array<{ message: string; line: number; startChar: number; endChar: number }> = [];
-    const lines = document.getText().split('\n');
-
-    // Order longest->shortest so alternation matches the longest first.
-    const INFINITY_TOKEN = /\b(INFINITY|INFIN|INFTY|INF)\b/gi;
-
-    let inAbbreviatedBlock = false;
-
-    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-      const line = lines[lineNum];
-      if (!line) continue;
-
-      const trimmed = line.trim();
-      if (trimmed.startsWith(';')) continue;
-
-      const withoutComment = stripComment(trimmed);
-
-      // Control record keyword resets block context; don't scan the $RECORD line itself.
-      const controlRecordMatch = withoutComment.match(/^\$(\w+)/);
-      if (controlRecordMatch) {
-        const recordName = '$' + controlRecordMatch[1]!.toUpperCase();
-        inAbbreviatedBlock = ABBREVIATED_CODE_BLOCKS.has(recordName);
-        continue;
-      }
-
-      if (!inAbbreviatedBlock) continue;
-
-      const leadingWhitespace = line.length - line.trimStart().length;
-      INFINITY_TOKEN.lastIndex = 0;
-      let match;
-      while ((match = INFINITY_TOKEN.exec(withoutComment)) !== null) {
-        const tokenStart = leadingWhitespace + match.index;
-        const tokenEnd = tokenStart + match[0].length;
-        errors.push({
-          message: `${match[0].toUpperCase()} is only valid inside $THETA bound triples. Use e.g. 1.0D+30 or the NMPRD_REAL::INFNTY constant via verbatim code.`,
-          line: lineNum,
-          startChar: tokenStart,
-          endChar: tokenEnd
-        });
-      }
-    }
-
-    return { isValid: errors.length === 0, errors };
-  }
 }

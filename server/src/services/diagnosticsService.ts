@@ -13,6 +13,10 @@ import {
   validateContinuationMarkers
 } from '../utils/validateControlRecords';
 import { ParameterScanner } from './ParameterScanner';
+import { validateSequentialNumbering } from '../validators/sequentialNumbering';
+import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
+import { validateComIndices } from '../validators/comIndices';
+import { validateInfinityTokenUsage } from '../validators/infinityTokens';
 
 export class DiagnosticsService {
   private connection: Connection;
@@ -41,7 +45,7 @@ export class DiagnosticsService {
       const parameters = ParameterScanner.scanDocument(document);
       
       // Validate sequential parameter numbering
-      const parameterValidation = ParameterScanner.validateSequentialNumbering(parameters);
+      const parameterValidation = validateSequentialNumbering(parameters);
       if (!parameterValidation.isValid) {
         for (const error of parameterValidation.errors) {
           const diagnostic: Diagnostic = {
@@ -92,7 +96,7 @@ export class DiagnosticsService {
       }
 
       // Validate SAME keyword usage in BLOCK context
-      const sameKeywordValidation = ParameterScanner.validateSameKeywordUsage(document);
+      const sameKeywordValidation = validateSameKeywordUsage(document);
       if (!sameKeywordValidation.isValid) {
         for (const error of sameKeywordValidation.errors) {
           const diagnostic: Diagnostic = {
@@ -143,7 +147,7 @@ export class DiagnosticsService {
       }
 
       // Validate COM(i) indices against COMRES+COMSAV declared in $ABBREV
-      const comIndexValidation = ParameterScanner.validateComIndices(document);
+      const comIndexValidation = validateComIndices(document);
       if (!comIndexValidation.isValid) {
         for (const error of comIndexValidation.errors) {
           const diagnostic: Diagnostic = {
@@ -160,7 +164,7 @@ export class DiagnosticsService {
       }
 
       // Validate infinity token misuse in abbreviated code (ERROR 208 UNDEFINED VARIABLE)
-      const infinityTokenValidation = ParameterScanner.validateInfinityTokenUsage(document);
+      const infinityTokenValidation = validateInfinityTokenUsage(document);
       if (!infinityTokenValidation.isValid) {
         for (const error of infinityTokenValidation.errors) {
           const diagnostic: Diagnostic = {

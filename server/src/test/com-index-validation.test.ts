@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { validateComIndices } from '../validators/comIndices';
 
 // $ABBREV COMRES=N / COMSAV=N declare the size of the COM() array.
 // References to COM(i) where i > COMRES+COMSAV overflow into other data.
@@ -18,7 +18,7 @@ COM(1) = LOG(DV)
 COM(5) = 0
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateComIndices(doc);
+    const result = validateComIndices(doc);
     expect(result.isValid).toBe(false);
     const err = result.errors.find(e => e.message.includes('COM(5)'));
     expect(err).toBeDefined();
@@ -34,7 +34,7 @@ COM(2) = 2
 COM(3) = 3
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateComIndices(doc);
+    const result = validateComIndices(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -47,7 +47,7 @@ COM(2) = X
 COM(3) = Y
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateComIndices(doc);
+    const result = validateComIndices(doc);
     expect(result.isValid).toBe(false);
     const err = result.errors.find(e => e.message.includes('COM(3)'));
     expect(err).toBeDefined();
@@ -60,7 +60,7 @@ $PRED
 COM(5) = 0
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateComIndices(doc);
+    const result = validateComIndices(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });

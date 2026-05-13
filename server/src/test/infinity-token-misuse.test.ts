@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { validateInfinityTokenUsage } from '../validators/infinityTokens';
 
 // INF / INFINITY / INFIN / INFTY are lexical tokens valid only inside $THETA bound triples.
 // Using them as identifiers in abbreviated code produces NMTRAN ERROR 208 (UNDEFINED VARIABLE).
@@ -19,7 +19,7 @@ A = INF
 Y = A
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateInfinityTokenUsage(doc);
+    const result = validateInfinityTokenUsage(doc);
     expect(result.isValid).toBe(false);
     const err = result.errors.find(e => e.message.includes('INF'));
     expect(err).toBeDefined();
@@ -36,7 +36,7 @@ V = INFIN
 KA = INFTY
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateInfinityTokenUsage(doc);
+    const result = validateInfinityTokenUsage(doc);
     expect(result.isValid).toBe(false);
     expect(result.errors.length).toBe(3);
   });
@@ -48,7 +48,7 @@ $PRED
 Y = A
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateInfinityTokenUsage(doc);
+    const result = validateInfinityTokenUsage(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -63,7 +63,7 @@ INFNTY = 3
 Y = INFO + INFN + INFNTY
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateInfinityTokenUsage(doc);
+    const result = validateInfinityTokenUsage(doc);
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
@@ -75,7 +75,7 @@ Y = -INF
 W = +INFINITY
 `;
     const doc = createDocument(content);
-    const result = ParameterScanner.validateInfinityTokenUsage(doc);
+    const result = validateInfinityTokenUsage(doc);
     expect(result.isValid).toBe(false);
     expect(result.errors.length).toBe(2);
   });

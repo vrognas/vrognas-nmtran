@@ -1,4 +1,5 @@
 import { ParameterScanner } from '../services/ParameterScanner';
+import { validateSequentialNumbering } from '../validators/sequentialNumbering';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 // Test the exact scenario from moxonidine.mod
@@ -90,7 +91,7 @@ $SIGMA  0.01`;
     const validDocument = TextDocument.create('test://test.mod', 'nmtran', 1, validContent);
     const validLocations = ParameterScanner.scanDocument(validDocument);
     
-    const validResult = ParameterScanner.validateSequentialNumbering(validLocations);
+    const validResult = validateSequentialNumbering(validLocations);
     expect(validResult.isValid).toBe(true);
     expect(validResult.errors).toHaveLength(0);
     
@@ -104,7 +105,7 @@ $SIGMA  0.01`;
       { type: 'EPS' as const, index: 2, line: 2 },   // Missing EPS(1)
     ];
     
-    const invalidResult = ParameterScanner.validateSequentialNumbering(parametersWithGaps);
+    const invalidResult = validateSequentialNumbering(parametersWithGaps);
     expect(invalidResult.isValid).toBe(false);
     expect(invalidResult.errors).toContain('Missing THETA(3) - parameters must be sequential with no gaps');
     expect(invalidResult.errors).toContain('Missing ETA(2) - parameters must be sequential with no gaps');
