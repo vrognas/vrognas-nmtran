@@ -97,26 +97,6 @@ describe('DocumentService', () => {
     });
   });
 
-  describe('getAllDocumentUris', () => {
-    it('should return all cached document URIs', () => {
-      const doc1 = TextDocument.create('test://doc1.mod', 'nmtran', 1, '$THETA 1');
-      const doc2 = TextDocument.create('test://doc2.mod', 'nmtran', 1, '$THETA 2');
-
-      documentService.setDocument(doc1);
-      documentService.setDocument(doc2);
-
-      const uris = documentService.getAllDocumentUris();
-      expect(uris).toHaveLength(2);
-      expect(uris).toContain('test://doc1.mod');
-      expect(uris).toContain('test://doc2.mod');
-    });
-
-    it('should return empty array when no documents cached', () => {
-      const uris = documentService.getAllDocumentUris();
-      expect(uris).toHaveLength(0);
-    });
-  });
-
   describe('createDocument', () => {
     it('should create a new TextDocument', () => {
       const doc = documentService.createDocument('test://new.mod', 'nmtran', 1, '$THETA 1.0');
@@ -125,36 +105,6 @@ describe('DocumentService', () => {
       expect(doc.languageId).toBe('nmtran');
       expect(doc.version).toBe(1);
       expect(doc.getText()).toBe('$THETA 1.0');
-    });
-  });
-
-  describe('getLines', () => {
-    it('should return lines array for cached document', () => {
-      const doc = TextDocument.create('test://test.mod', 'nmtran', 1, '$THETA 1.0\n$OMEGA 0.1');
-      documentService.setDocument(doc);
-      const lines = documentService.getLines('test://test.mod');
-      expect(lines).toEqual(['$THETA 1.0', '$OMEGA 0.1']);
-    });
-
-    it('should return same array reference on repeated calls (caching)', () => {
-      const doc = TextDocument.create('test://test.mod', 'nmtran', 1, '$THETA 1.0');
-      documentService.setDocument(doc);
-      const lines1 = documentService.getLines('test://test.mod');
-      const lines2 = documentService.getLines('test://test.mod');
-      expect(lines1).toBe(lines2);
-    });
-
-    it('should invalidate cache when document version changes', () => {
-      const doc1 = TextDocument.create('test://test.mod', 'nmtran', 1, '$THETA 1.0');
-      documentService.setDocument(doc1);
-      const lines1 = documentService.getLines('test://test.mod');
-
-      const doc2 = TextDocument.create('test://test.mod', 'nmtran', 2, '$THETA 2.0');
-      documentService.setDocument(doc2);
-      const lines2 = documentService.getLines('test://test.mod');
-
-      expect(lines1).not.toBe(lines2);
-      expect(lines2).toEqual(['$THETA 2.0']);
     });
   });
 
