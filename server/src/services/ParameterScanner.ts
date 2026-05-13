@@ -7,8 +7,21 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
-import { ParameterFactory } from '../factories/parameterFactory';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
+
+function createScannerState(): ScannerState {
+  return {
+    currentBlockType: null,
+    inBlockMatrix: false,
+    blockMatrixRemaining: 0,
+    blockMatrixSize: 0,
+    blockElementsSeen: 0,
+    blockDiagonalsSeen: 0,
+    blockElements: [],
+    counters: { THETA: 0, ETA: 0, EPS: 0 },
+    blockFixedKeywords: [],
+  };
+}
 
 export interface ParameterLocation {
   type: 'THETA' | 'ETA' | 'EPS';
@@ -100,7 +113,7 @@ export class ParameterScanner {
 
     const locations: ParameterLocation[] = [];
     const lines = document.getText().split('\n');
-    const state = ParameterFactory.createScannerState();
+    const state = createScannerState();
     
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {
       const line = lines[lineNum];
