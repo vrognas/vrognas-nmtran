@@ -1,8 +1,11 @@
 /**
  * Diagnostics Service
- * 
- * Handles document validation and diagnostic generation for NMTRAN files.
- * Separated from main server for better maintainability.
+ *
+ * Orchestrates per-validator runs and translates each validator's
+ * positional `ValidationError` (or file-level error string from
+ * `validateSequentialNumbering`) into an LSP `Diagnostic`. The
+ * mapping between `ValidationError → Diagnostic` is uniform and
+ * lives in two small helpers below.
  */
 
 import { Connection, Diagnostic, DiagnosticSeverity } from 'vscode-languageserver/node';
@@ -20,6 +23,45 @@ import { validateInfinityTokenUsage } from '../validators/infinityTokens';
 import { validateParameterReferencesWithParameters } from '../validators/parameterReferences';
 import { validateBlockMatrixSyntax } from '../validators/blockMatrixSyntax';
 import { validateParameterBounds } from '../validators/parameterBounds';
+import { ValidationError, ValidationResult } from '../validators/types';
+
+/** Convert a positional `ValidationError` to an LSP `Diagnostic`. */
+function toPositionalDiagnostic(
+  error: ValidationError,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+): Diagnostic {
+  return {
+    severity,
+    range: {
+      start: { line: error.line, character: error.startChar },
+      end: { line: error.line, character: error.endChar },
+    },
+    message: error.message,
+    source: 'nmtran',
+  };
+}
+
+/** Convert a file-level message (no position) to an LSP `Diagnostic` anchored at (0,0). */
+function toFileDiagnostic(
+  message: string,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+): Diagnostic {
+  return {
+    severity,
+    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+    message,
+    source: 'nmtran',
+  };
+}
+
+/** Append a `ValidationResult`'s errors as positional diagnostics. */
+function pushPositional(
+  diagnostics: Diagnostic[],
+  result: ValidationResult,
+  severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+): void {
+  for (const error of result.errors) diagnostics.push(toPositionalDiagnostic(error, severity));
+}
 
 export class DiagnosticsService {
   private connection: Connection;
@@ -34,167 +76,35 @@ export class DiagnosticsService {
   async validateDocument(document: TextDocument): Promise<void> {
     try {
       const text = document.getText();
-      const controlRecords = locateControlRecordsInText(text);
       const diagnostics: Diagnostic[] = [];
 
-      for (const match of controlRecords) {
+      for (const match of locateControlRecordsInText(text)) {
         const diagnostic = generateDiagnosticForControlRecord(match, document);
-        if (diagnostic) {
-          diagnostics.push(diagnostic);
-        }
+        if (diagnostic) diagnostics.push(diagnostic);
       }
 
-      // Perform comprehensive parameter validation (single document scan)
+      // Single document scan, shared across the parameter validators that need it.
       const parameters = ParameterScanner.scanDocument(document);
-      
-      // Validate sequential parameter numbering
-      const parameterValidation = validateSequentialNumbering(parameters);
-      if (!parameterValidation.isValid) {
-        for (const error of parameterValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: 0, character: 0 },
-              end: { line: 0, character: 0 }
-            },
-            message: error,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
+
+      // File-level (no line/column info): missing-index gaps.
+      for (const msg of validateSequentialNumbering(parameters).errors) {
+        diagnostics.push(toFileDiagnostic(msg));
       }
 
-      // Validate parameter references using existing scanned parameters
-      const referenceValidation = validateParameterReferencesWithParameters(document, parameters);
-      if (!referenceValidation.isValid) {
-        for (const error of referenceValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
+      // Positional validators — uniform Error severity unless noted.
+      pushPositional(diagnostics, validateParameterReferencesWithParameters(document, parameters));
+      pushPositional(diagnostics, validateBlockMatrixSyntax(document));
+      pushPositional(diagnostics, validateSameKeywordUsage(document), DiagnosticSeverity.Warning);
+      pushPositional(diagnostics, validateContinuationMarkers(document));
+      pushPositional(diagnostics, validateParameterBounds(document));
+      pushPositional(diagnostics, validateComIndices(document));
+      pushPositional(diagnostics, validateInfinityTokenUsage(document));
 
-      // Validate BLOCK matrix syntax and structure
-      const blockMatrixValidation = validateBlockMatrixSyntax(document);
-      if (!blockMatrixValidation.isValid) {
-        for (const error of blockMatrixValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      // Validate SAME keyword usage in BLOCK context
-      const sameKeywordValidation = validateSameKeywordUsage(document);
-      if (!sameKeywordValidation.isValid) {
-        for (const error of sameKeywordValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Warning,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      // Validate continuation marker usage
-      const continuationValidation = validateContinuationMarkers(document);
-      if (!continuationValidation.isValid) {
-        for (const error of continuationValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      // Validate parameter bounds
-      const parameterBoundsValidation = validateParameterBounds(document);
-      if (!parameterBoundsValidation.isValid) {
-        for (const error of parameterBoundsValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      // Validate COM(i) indices against COMRES+COMSAV declared in $ABBREV
-      const comIndexValidation = validateComIndices(document);
-      if (!comIndexValidation.isValid) {
-        for (const error of comIndexValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      // Validate infinity token misuse in abbreviated code (ERROR 208 UNDEFINED VARIABLE)
-      const infinityTokenValidation = validateInfinityTokenUsage(document);
-      if (!infinityTokenValidation.isValid) {
-        for (const error of infinityTokenValidation.errors) {
-          const diagnostic: Diagnostic = {
-            severity: DiagnosticSeverity.Error,
-            range: {
-              start: { line: error.line, character: error.startChar },
-              end: { line: error.line, character: error.endChar }
-            },
-            message: error.message,
-            source: 'nmtran'
-          };
-          diagnostics.push(diagnostic);
-        }
-      }
-
-      this.connection.sendDiagnostics({
-        uri: document.uri, 
-        diagnostics 
-      });
-
+      this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
     } catch (error) {
       this.connection.console.error(`❌ Error validating document: ${error}`);
-      // Don't crash the server on validation errors
-      this.connection.sendDiagnostics({ 
-        uri: document.uri, 
-        diagnostics: [] 
-      });
+      // Don't crash the server on validation errors.
+      this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     }
   }
 }
