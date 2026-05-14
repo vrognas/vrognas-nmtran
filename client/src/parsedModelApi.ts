@@ -26,6 +26,14 @@ export const PARSE_MODEL_TEXT_REQUEST = 'nmtran/parseModelText';
 
 export interface NmtranThetaDecl {
   index: number;
+  /**
+   * Initial estimate. For bound triples `(low, init, up)` this is the middle term.
+   *
+   * Edge case: NMTRAN permits an omitted init in a triple, e.g. `$THETA (0,,10)`
+   * (lower=0, upper=10, init unspecified). In that single case `init` is `NaN`,
+   * which JSON-serialises as `null` over the LSP wire. Consumers that compute
+   * with `init` should guard with `Number.isFinite(init)` before use.
+   */
   init: number;
   lower?: number;
   upper?: number;
