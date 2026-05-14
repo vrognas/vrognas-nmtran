@@ -7,15 +7,13 @@
 
 import { Connection, Hover, MarkupContent, MarkupKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { splitLines } from '../utils/text';
+import { splitLines, findWordStart, findWordEnd } from '../utils/text';
 import { explainControlRecordHover } from '../hoverInfo';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
 import { ParameterScanner, ParameterLocation } from './ParameterScanner';
 import { reservedDiagnosticItems, reservedVariables } from '../constants';
 import { resolveErrBinding } from '../utils/errBinding';
-import { createParameterReferenceRegex } from '../utils/patterns';
-
-const CONTROL_RECORD_RE = /\$[A-Z]+\b/g;
+import { createParameterReferenceRegex, createControlRecordRegex } from '../utils/patterns';
 
 export class HoverService {
   private connection: Connection;
@@ -106,7 +104,7 @@ export class HoverService {
    * Get hover information for control records
    */
   private getControlRecordHover(text: string, offset: number, document: TextDocument): Hover | null {
-    const controlRegex = new RegExp(CONTROL_RECORD_RE.source, 'g');
+    const controlRegex = createControlRecordRegex();
     let match: RegExpExecArray | null;
 
     while ((match = controlRegex.exec(text)) !== null) {
@@ -240,8 +238,8 @@ export class HoverService {
    */
   private getDiagnosticItemHover(text: string, offset: number): Hover | null {
     // Find the word surrounding the cursor.
-    const wordStart = this.findWordStart(text, offset);
-    const wordEnd = this.findWordEnd(text, offset);
+    const wordStart = findWordStart(text, offset);
+    const wordEnd = findWordEnd(text, offset);
     if (wordStart === wordEnd) return null;
 
     const word = text.substring(wordStart, wordEnd).toUpperCase();
@@ -256,25 +254,13 @@ export class HoverService {
     } as Hover;
   }
 
-  private findWordStart(text: string, offset: number): number {
-    let i = offset;
-    while (i > 0 && /[A-Za-z0-9_]/.test(text[i - 1] || '')) i--;
-    return i;
-  }
-
-  private findWordEnd(text: string, offset: number): number {
-    let i = offset;
-    while (i < text.length && /[A-Za-z0-9_]/.test(text[i] || '')) i++;
-    return i;
-  }
-
   /**
    * Get hover information for reserved variables like ICALL, NEWIND, Y.
    * Looks up the word under the cursor in the shared `reservedVariables` map.
    */
   private getReservedVariableHover(text: string, offset: number): Hover | null {
-    const wordStart = this.findWordStart(text, offset);
-    const wordEnd = this.findWordEnd(text, offset);
+    const wordStart = findWordStart(text, offset);
+    const wordEnd = findWordEnd(text, offset);
     if (wordStart === wordEnd) return null;
 
     const word = text.substring(wordStart, wordEnd).toUpperCase();

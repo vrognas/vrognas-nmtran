@@ -18,6 +18,15 @@ export const RECORD_PATTERNS = {
 /** `BLOCK(n)` keyword — captures the block size. */
 export const BLOCK_RE = /BLOCK\((\d+)\)/i;
 
+/**
+ * `$RECORD` token (uppercase A-Z only). Caller must use `/g` for iteration;
+ * the factory exists so each caller mints its own instance and avoids
+ * `lastIndex` contamination from prior runs.
+ */
+export function createControlRecordRegex(): RegExp {
+  return /\$[A-Z]+\b/g;
+}
+
 /** `SAME` keyword — word-boundary, case-insensitive. */
 export const SAME_RE = /\bSAME\b/i;
 

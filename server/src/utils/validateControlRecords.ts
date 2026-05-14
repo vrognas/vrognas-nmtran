@@ -1,6 +1,7 @@
 import { Diagnostic, DiagnosticSeverity, TextDocument } from 'vscode-languageserver/node';
 import { allowedControlRecords } from '../constants';
 import { stripComment } from './text';
+import { createControlRecordRegex } from './patterns';
 
 /**
  * Finds the full allowed control record name if the given record is a recognized abbreviation.
@@ -61,7 +62,7 @@ function evaluateControlRecord(record: string): {
  * diagnostics are only produced for actual code lines.
  */
 function locateControlRecordsInText(text: string): RegExpExecArray[] {
-  const controlRecordRegex = /\$[A-Z]+\b/g;
+  const controlRecordRegex = createControlRecordRegex();
   const findings: RegExpExecArray[] = [];
   let match: RegExpExecArray | null;
 
