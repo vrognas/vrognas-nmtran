@@ -9,6 +9,7 @@ import { Connection, CompletionItem, CompletionItemKind, InsertTextFormat } from
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { allowedControlRecords, reservedDiagnosticItems } from '../constants';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
+import { splitLines } from '../utils/text';
 
 export class CompletionService {
   private connection: Connection;
@@ -23,7 +24,7 @@ export class CompletionService {
   provideCompletions(document: TextDocument, position: { line: number; character: number }): CompletionItem[] {
     try {
       const text = document.getText();
-      const lines = text.split('\n');
+      const lines = splitLines(text);
       const line = lines[position.line] || '';
       const linePrefix = line.substring(0, position.character);
 

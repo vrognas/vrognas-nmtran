@@ -13,7 +13,7 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
-import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
+import { stripComment, stripRecordPrefix, stripBlockPrefix, splitLines } from '../utils/text';
 import { RECORD_PATTERNS, BLOCK_RE, SAME_RE } from '../utils/patterns';
 
 export interface ParameterLocation {
@@ -102,7 +102,7 @@ export class ParameterScanner {
     if (cached) return this.deepCopyLocations(cached);
 
     const locations: ParameterLocation[] = [];
-    const lines = document.getText().split('\n');
+    const lines = splitLines(document.getText());
     const state = createScannerState();
     
     for (let lineNum = 0; lineNum < lines.length; lineNum++) {

@@ -13,12 +13,12 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult, ValidationError } from './types';
 import { RECORD_PATTERNS } from '../utils/patterns';
-import { stripComment, splitTopLevelCommas } from '../utils/text';
+import { stripComment, splitTopLevelCommas, splitLines } from '../utils/text';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
 
 export function validateParameterBounds(document: TextDocument): ValidationResult {
   const errors: ValidationError[] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
   let currentBlockType: 'THETA' | 'OMEGA' | 'SIGMA' | null = null;
   // BLOCK matrix state: cumulative value count for diagonal/off-diagonal detection.
   let blockState: { size: number; count: number } | null = null;

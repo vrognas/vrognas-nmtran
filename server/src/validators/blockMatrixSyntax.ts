@@ -10,13 +10,13 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult, ValidationError } from './types';
 import { SAME_RE } from '../utils/patterns';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 
 const NUMERIC_RE = /[\d\-+][\d\-+.eE]*/g;
 
 export function validateBlockMatrixSyntax(document: TextDocument): ValidationResult {
   const errors: ValidationError[] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
   let currentBlockType: 'OMEGA' | 'SIGMA' | null = null;
   let currentBlockSize = 0;
   let currentBlockStartLine = 0;

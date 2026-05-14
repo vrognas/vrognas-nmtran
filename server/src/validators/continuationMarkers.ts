@@ -11,10 +11,11 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult } from './types';
+import { splitLines } from '../utils/text';
 
 export function validateContinuationMarkers(document: TextDocument): ValidationResult {
   const errors: ValidationResult['errors'] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const line = lines[lineNum];

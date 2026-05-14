@@ -14,6 +14,7 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { RECORD_PATTERNS } from './patterns';
+import { splitLines } from './text';
 
 export interface ErrBindingResult {
   binding: 'ETA' | 'EPS';
@@ -22,7 +23,7 @@ export interface ErrBindingResult {
 }
 
 export function resolveErrBinding(document: TextDocument): ErrBindingResult {
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
   const hasSigma = hasControlRecord(lines, RECORD_PATTERNS.SIGMA);
   const hasOmega = hasControlRecord(lines, RECORD_PATTERNS.OMEGA);
   return { binding: hasSigma ? 'EPS' : 'ETA', hasOmega, hasSigma };

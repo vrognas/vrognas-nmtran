@@ -7,11 +7,11 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult } from './types';
 import { SAME_RE } from '../utils/patterns';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 
 export function validateSameKeywordUsage(document: TextDocument): ValidationResult {
   const errors: ValidationResult['errors'] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
 
   for (let lineNum = 0; lineNum < lines.length; lineNum++) {
     const line = lines[lineNum];

@@ -7,6 +7,7 @@
 
 import { Connection, Hover, MarkupContent, MarkupKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { splitLines } from '../utils/text';
 import { explainControlRecordHover } from '../hoverInfo';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
 import { ParameterScanner, ParameterLocation } from './ParameterScanner';
@@ -30,7 +31,7 @@ export class HoverService {
     try {
       const text = document.getText();
       const offset = document.offsetAt(position);
-      const lines = text.split('\n');
+      const lines = splitLines(text);
       const parameterLocations = ParameterScanner.scanDocument(document);
 
       const parameterHover = this.getParameterReferenceHover(document, position, offset, parameterLocations, lines);

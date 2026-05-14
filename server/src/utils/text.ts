@@ -14,6 +14,37 @@ export function stripComment(line: string): string {
   return idx === -1 ? line : line.slice(0, idx);
 }
 
+/**
+ * Split a document's text into lines, normalising CRLF and LF endings.
+ * Use this instead of `text.split('\n')` so trailing `\r` characters
+ * don't leak into per-line regex / position math on Windows-encoded files.
+ */
+export function splitLines(text: string): string[] {
+  return text.split(/\r?\n/);
+}
+
+/**
+ * Identifier characters per NMTRAN abbreviated-code lexer
+ * (`[A-Za-z0-9_]`). Used by word-at-cursor lookups.
+ */
+function isIdentChar(ch: string): boolean {
+  return /[A-Za-z0-9_]/.test(ch);
+}
+
+/** Walk left from `offset` while characters are identifier chars; returns the start index. */
+export function findWordStart(text: string, offset: number): number {
+  let i = offset;
+  while (i > 0 && isIdentChar(text[i - 1] || '')) i--;
+  return i;
+}
+
+/** Walk right from `offset` while characters are identifier chars; returns the exclusive end index. */
+export function findWordEnd(text: string, offset: number): number {
+  let i = offset;
+  while (i < text.length && isIdentChar(text[i] || '')) i++;
+  return i;
+}
+
 /** Strip a leading `\s*$RECORD\s*` prefix. */
 export function stripRecordPrefix(line: string): string {
   return line.replace(/^\s*\$\w+\s*/i, '');

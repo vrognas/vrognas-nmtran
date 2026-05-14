@@ -7,7 +7,7 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult } from './types';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 
 const ABBR_RE = /^\$ABBR(EV)?\b/i;
 const COMRES_RE = /\bCOMRES\s*=\s*(\d+)/i;
@@ -16,7 +16,7 @@ const COM_REF = /\bCOM\s*\(\s*(\d+)\s*\)/gi;
 
 export function validateComIndices(document: TextDocument): ValidationResult {
   const errors: ValidationResult['errors'] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
 
   let comres = 0;
   let comsav = 0;

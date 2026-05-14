@@ -8,14 +8,14 @@
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult } from './types';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 
 // Order longest→shortest so alternation matches the longest first.
 const INFINITY_TOKEN = /\b(INFINITY|INFIN|INFTY|INF)\b/gi;
 
 export function validateInfinityTokenUsage(document: TextDocument): ValidationResult {
   const errors: ValidationResult['errors'] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
 
   let inAbbreviatedBlock = false;
 

@@ -7,6 +7,7 @@
 
 import { Connection, TextEdit, Range } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { splitLines } from '../utils/text';
 
 export class FormattingService {
   private connection: Connection;
@@ -25,7 +26,7 @@ export class FormattingService {
   formatDocument(document: TextDocument, indentSize: number = FormattingService.DEFAULT_INDENT_SIZE): TextEdit[] {
     try {
       const text = document.getText();
-      const lines = text.split('\n');
+      const lines = splitLines(text);
       const edits: TextEdit[] = [];
 
       let currentIndentLevel = 0;

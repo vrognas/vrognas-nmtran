@@ -14,14 +14,14 @@ import { ValidationResult } from './types';
 import { ParameterScanner, type ParameterLocation } from '../services/ParameterScanner';
 import { resolveErrBinding } from '../utils/errBinding';
 import { createParameterReferenceRegex } from '../utils/patterns';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 
 export function validateParameterReferencesWithParameters(
   document: TextDocument,
   parameters: ParameterLocation[],
 ): ValidationResult {
   const errors: ValidationResult['errors'] = [];
-  const lines = document.getText().split('\n');
+  const lines = splitLines(document.getText());
 
   const maxCounts = { THETA: 0, ETA: 0, EPS: 0 };
   for (const param of parameters) {

@@ -13,7 +13,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ParameterScanner, ParameterLocation } from './ParameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
-import { stripComment } from '../utils/text';
+import { stripComment, splitLines } from '../utils/text';
 import {
   RECORD_PATTERNS,
   BLOCK_RE,
@@ -193,7 +193,7 @@ export class DefinitionService {
     );
     if (!paramLocation) return [];
 
-    const lines = document.getText().split('\n');
+    const lines = splitLines(document.getText());
     const line = lines[paramLocation.line];
     const locations: Location[] = [];
 
@@ -237,7 +237,7 @@ export class DefinitionService {
     sameLineNum: number,
     allParams: ParameterLocation[]
   ): Location | null {
-    const lines = document.getText().split('\n');
+    const lines = splitLines(document.getText());
 
     let blockLine = -1;
     for (let i = sameLineNum - 1; i >= 0; i--) {
@@ -270,7 +270,7 @@ export class DefinitionService {
    */
   private findAllReferences(document: TextDocument, parameter: ParameterInfo, includeDeclaration: boolean = true): Location[] {
     const references: Location[] = [];
-    const lines = document.getText().split('\n');
+    const lines = splitLines(document.getText());
 
     // EPS(n) and ERR(n) are synonyms; usage search must match both.
     const typePattern = parameter.type === 'EPS' ? '(EPS|ERR)' : parameter.type;
