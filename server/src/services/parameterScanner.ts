@@ -14,7 +14,7 @@
  */
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { stripComment, splitLines } from '../utils/text';
+import { stripComment, splitLines, stripParameterPrefix } from '../utils/text';
 import { RECORD_PATTERNS, SAME_RE } from '../utils/patterns';
 import { BlockMatrixScanner, detectBlockMatrix } from './blockMatrixScanner';
 
@@ -332,7 +332,6 @@ function parseThetaExpressions(line: string): Array<{
  */
 function findValuePositions(line: string): Array<{ start: number; end: number }> {
   const trimmed = line.trim();
-
   if (SAME_RE.test(trimmed)) {
     const match = trimmed.match(SAME_RE);
     if (match && match.index !== undefined) {
@@ -342,22 +341,9 @@ function findValuePositions(line: string): Array<{ start: number; end: number }>
     return [];
   }
 
-  let offset = 0;
-  let searchText = line;
-  const controlMatch = searchText.match(/^\s*\$\w+\s*/i);
-  if (controlMatch) {
-    offset += controlMatch[0].length;
-    searchText = searchText.substring(controlMatch[0].length);
-  }
-  const blockMatch = searchText.match(/^BLOCK\(\d+\)\s*/i);
-  if (blockMatch) {
-    offset += blockMatch[0].length;
-    searchText = searchText.substring(blockMatch[0].length);
-  }
-  searchText = stripComment(searchText);
-
+  const { content, offset } = stripParameterPrefix(line);
   const positions: Array<{ start: number; end: number }> = [];
-  for (const m of searchText.matchAll(NUMERIC_GLOBAL)) {
+  for (const m of content.matchAll(NUMERIC_GLOBAL)) {
     const start = offset + (m.index ?? 0);
     positions.push({ start, end: start + m[0].length });
   }

@@ -22,7 +22,7 @@
 
 import type { ParameterLocation } from './parameterScanner';
 import { NMTRANMatrixParser } from '../utils/NMTRANMatrixParser';
-import { stripComment, stripRecordPrefix, stripBlockPrefix } from '../utils/text';
+import { stripParameterPrefix } from '../utils/text';
 import { BLOCK_RE } from '../utils/patterns';
 
 const NUMERIC_GLOBAL = /[\d\-+][\d\-+.eE]*/g;
@@ -96,45 +96,45 @@ export class BlockMatrixScanner {
     type: 'ETA' | 'EPS',
     allocIndex: () => number,
   ): ParameterLocation[] {
-    const trimmed = line.trim();
-    const cleanLine = stripBlockPrefix(stripRecordPrefix(stripComment(trimmed)));
-    const values = cleanLine.match(NUMERIC_GLOBAL) ?? [];
-    if (values.length === 0) return [];
+    // Enumerate numeric token positions in source order. matchAll on the
+    // prefix-stripped substring (lifted back to absolute offsets via the
+    // returned offset) gives correct positions even when tokens repeat —
+    // `0 0.0676983 0` is three distinct matches at three distinct offsets,
+    // not three lookups of substring '0' colliding inside '0.0676983'.
+    const { content, offset } = stripParameterPrefix(line);
+    const positions: Array<{ start: number; end: number }> = [];
+    for (const m of content.matchAll(NUMERIC_GLOBAL)) {
+      const start = offset + (m.index ?? 0);
+      positions.push({ start, end: start + m[0].length });
+    }
+    if (positions.length === 0) return [];
 
     const locations: ParameterLocation[] = [];
     const startElement = this.elementsSeen;
     let diagonalsFound = 0;
 
-    for (let pos = 0; pos < values.length; pos++) {
+    for (let pos = 0; pos < positions.length; pos++) {
       const absolute = startElement + pos;
       // isDiagonalElement returns the 1-based diagonal index when this
       // flat position is on the diagonal, or null for off-diagonals.
       const diagonal = NMTRANMatrixParser.isDiagonalElement(absolute);
       if (diagonal === null) continue;
 
-      const value = values[pos]!;
-      const codeOnly = line.replace(/;.*$/, '');
-      // `lastIndexOf(prevValue)` anchors the search so repeated tokens like
-      // `0.1 0.1 0.1` get distinct startChar/endChar per occurrence.
-      const searchStart = pos > 0 ? codeOnly.lastIndexOf(values[pos - 1]!) : 0;
-      const valueStart = codeOnly.indexOf(value, searchStart);
-
-      const location: ParameterLocation = {
+      const range = positions[pos]!;
+      locations.push({
         type,
         index: allocIndex(),
         line: lineNum,
-        ...(valueStart !== -1
-          ? { startChar: valueStart, endChar: valueStart + value.length }
-          : {}),
+        startChar: range.start,
+        endChar: range.end,
         ...(this.fixedKeywords.length > 0
           ? { additionalRanges: this.fixedKeywords.map((k) => ({ ...k })) }
           : {}),
-      };
-      locations.push(location);
+      });
       diagonalsFound++;
     }
 
-    this.elementsSeen += values.length;
+    this.elementsSeen += positions.length;
     this.remaining -= diagonalsFound;
 
     return locations;

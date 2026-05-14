@@ -58,6 +58,28 @@ describe('ParameterScanner BLOCK Matrix Tests', () => {
     expect(eta5?.endChar).toBeDefined();
   });
 
+  test('BLOCK row with repeated 0 off-diagonals reports correct diagonal position', () => {
+    // Regression pin: previously processLine used cleanLine.lastIndexOf(prevValue)
+    // + cleanLine.indexOf(value, ...) to anchor each numeric. On rows like
+    // `0 0.0676983`, lastIndexOf('0') finds the '0' inside '0.0676983', not
+    // the standalone '0' — subsequent indexOf returns -1, the diagonal gets
+    // no startChar/endChar, hover and F12 underline nothing.
+    const content = ['$OMEGA BLOCK(2)', ' 0.0676983', ' 0 0.0676983'].join('\n');
+    const document = TextDocument.create('test://test.mod', 'nmtran', 1, content);
+    const locations = ParameterScanner.scanDocument(document);
+
+    const etas = locations.filter(l => l.type === 'ETA');
+    expect(etas).toHaveLength(2);
+
+    const line2 = ' 0 0.0676983';
+    const eta2 = etas[1]!;
+    expect(eta2.line).toBe(2);
+    // ETA(2) is the diagonal at flat position 2 — the second numeric on
+    // line 2, which is `0.0676983` starting at char 3.
+    const slice = line2.substring(eta2.startChar ?? -1, eta2.endChar ?? -1);
+    expect(slice).toBe('0.0676983');
+  });
+
   test('multi-value diagonal OMEGA assigns distinct positions to each ETA', () => {
     // Regression pin: previously every ETA on `$OMEGA 0.1 0.2 0.3` got the
     // position of the first value (0.1) — findParameterValuePosition ignored
