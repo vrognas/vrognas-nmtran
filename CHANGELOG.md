@@ -7,6 +7,39 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.36] - 2026-05-14
+
+### Changed
+
+Codebase-wide cleanup pass — 4 focused commits, no client-visible
+behavior change.
+
+* **CRLF line splits normalised.** 13 callers used `text.split('\n')`
+  literally, leaving trailing `\r` on every line of Windows-encoded
+  `.mod` / `.ctl` files. `.trim()` masked most damage but position math
+  at line ends could drift. Added `splitLines(text)` in `utils/text`
+  (uses `/\r?\n/`) and refactored all 13 sites: ParameterScanner,
+  definitionService, hoverService, completionService, formattingService,
+  errBinding, and the seven validators (blockMatrixSyntax, comIndices,
+  sameKeywordUsage, continuationMarkers, infinityTokens, parameterBounds,
+  parameterReferences). `validateControlRecords.ts` kept its
+  `split('\n')`/`join('\n')` because that path preserves byte offsets
+  for the comment-masking regex.
+* **`constants.ts` lost 4 unused dictionaries** — 70 dead entries:
+  `reservedFunctions` (FUNCA-Z + VECTRA-Z), `protectiveFunctions`,
+  `generatedFiles`, `formatCodes`. All exported, zero imports.
+* **Word-at-cursor + CONTROL_RECORD regex deduplicated.**
+  `findWordStart` / `findWordEnd` lifted from `hoverService.ts` to
+  `utils/text`. `createControlRecordRegex()` factory in `utils/patterns`;
+  `hoverService.ts` and `validateControlRecords.ts` both consume it.
+* **Misc polish.** `parameterReferences.ts` switched `||` to `??` on the
+  optional `startChar` / `endChar` fallback (consistent with the rest of
+  the codebase). `formattingService.formatDocument` now gates its success
+  log behind `NODE_ENV=development` (was leaking `🎨 Formatted document…`
+  into production output channels). Two empty-bodied stub tests in
+  `definitionService.test.ts` filled with real assertions (mixed BLOCK +
+  diagonal OMEGA; complete model structure navigation).
+
 ## [0.4.35] - 2026-05-13
 
 ### Fixed
