@@ -50,11 +50,11 @@ interface ParameterInfo {
 }
 
 export class DefinitionService {
-  private connection: Connection;
   private performanceMonitor: PerformanceMonitor;
 
   constructor(connection: Connection) {
-    this.connection = connection;
+    // `connection` is forwarded to PerformanceMonitor for slow-op warnings;
+    // direct logging happens in server.ts's withDoc wrapper.
     this.performanceMonitor = new PerformanceMonitor(connection);
   }
 
@@ -64,27 +64,23 @@ export class DefinitionService {
    * SAME constraints emit both the SAME keyword location and the referenced value location.
    */
   async provideDefinition(document: TextDocument, position: Position): Promise<Location[] | null> {
+    // Errors propagate to server.ts withDocAsync wrapper for uniform logging.
     return this.performanceMonitor.measure('provideDefinition', async () => {
-      try {
-        const parameter = this.getParameterAtPosition(document, position);
-        if (parameter) {
-          const definitionLocations = this.findAllDefinitionLocations(document, parameter);
-          return definitionLocations.length > 0 ? definitionLocations : null;
-        }
-
-        // Fallback: user-defined variable (LHS of `name = rhs` inside an
-        // abbreviated-code block — $PRED / $PK / $ERROR / $DES / …).
-        const userVar = this.getUserVariableAtPosition(document, position);
-        if (userVar) {
-          const loc = this.findUserVariableDefinition(document, userVar);
-          return loc ? [loc] : null;
-        }
-
-        return null;
-      } catch (error) {
-        this.connection.console.error(`❌ Error in definition provider: ${error}`);
-        return null;
+      const parameter = this.getParameterAtPosition(document, position);
+      if (parameter) {
+        const definitionLocations = this.findAllDefinitionLocations(document, parameter);
+        return definitionLocations.length > 0 ? definitionLocations : null;
       }
+
+      // Fallback: user-defined variable (LHS of `name = rhs` inside an
+      // abbreviated-code block — $PRED / $PK / $ERROR / $DES / …).
+      const userVar = this.getUserVariableAtPosition(document, position);
+      if (userVar) {
+        const loc = this.findUserVariableDefinition(document, userVar);
+        return loc ? [loc] : null;
+      }
+
+      return null;
     });
   }
 
@@ -93,22 +89,17 @@ export class DefinitionService {
    * Shows everywhere THETA(3), ETA(2), etc. is used in the document.
    */
   provideReferences(document: TextDocument, position: Position, includeDeclaration: boolean): Location[] | null {
-    try {
-      const parameter = this.getParameterAtPosition(document, position);
-      if (parameter) {
-        return this.findAllReferences(document, parameter, includeDeclaration);
-      }
-
-      const userVar = this.getUserVariableAtPosition(document, position);
-      if (userVar) {
-        return this.findUserVariableReferences(document, userVar, includeDeclaration);
-      }
-
-      return null;
-    } catch (error) {
-      this.connection.console.error(`❌ Error in references provider: ${error}`);
-      return null;
+    const parameter = this.getParameterAtPosition(document, position);
+    if (parameter) {
+      return this.findAllReferences(document, parameter, includeDeclaration);
     }
+
+    const userVar = this.getUserVariableAtPosition(document, position);
+    if (userVar) {
+      return this.findUserVariableReferences(document, userVar, includeDeclaration);
+    }
+
+    return null;
   }
 
   clearCacheForUri(_uri: string): void {

@@ -16,36 +16,30 @@ import { resolveErrBinding } from '../utils/errBinding';
 import { createParameterReferenceRegex, createControlRecordRegex } from '../utils/patterns';
 
 export class HoverService {
-  private connection: Connection;
-
-  constructor(connection: Connection) {
-    this.connection = connection;
-  }
+  // Connection no longer used internally — errors propagate to server.ts wrapper.
+  // Constructor retained so the wiring in server.ts stays uniform across services.
+  constructor(_connection: Connection) {}
 
   /**
    * Provides hover information for control records and parameter references at the given position
    */
   provideHover(document: TextDocument, position: { line: number; character: number }): Hover | null {
-    try {
-      const text = document.getText();
-      const offset = document.offsetAt(position);
-      const lines = splitLines(text);
-      const parameterLocations = ParameterScanner.scanDocument(document);
+    // Errors propagate to server.ts withDoc wrapper, which logs uniformly.
+    const text = document.getText();
+    const offset = document.offsetAt(position);
+    const lines = splitLines(text);
+    const parameterLocations = ParameterScanner.scanDocument(document);
 
-      const parameterHover = this.getParameterReferenceHover(document, position, offset, parameterLocations, lines);
-      if (parameterHover) return parameterHover;
+    const parameterHover = this.getParameterReferenceHover(document, position, offset, parameterLocations, lines);
+    if (parameterHover) return parameterHover;
 
-      const reservedVariableHover = this.getReservedVariableHover(text, offset);
-      if (reservedVariableHover) return reservedVariableHover;
+    const reservedVariableHover = this.getReservedVariableHover(text, offset);
+    if (reservedVariableHover) return reservedVariableHover;
 
-      const diagnosticItemHover = this.getDiagnosticItemHover(text, offset);
-      if (diagnosticItemHover) return diagnosticItemHover;
+    const diagnosticItemHover = this.getDiagnosticItemHover(text, offset);
+    if (diagnosticItemHover) return diagnosticItemHover;
 
-      return this.getControlRecordHover(text, offset, document);
-    } catch (error) {
-      this.connection.console.error(`Error providing hover: ${error}`);
-      return null;
-    }
+    return this.getControlRecordHover(text, offset, document);
   }
 
   /**

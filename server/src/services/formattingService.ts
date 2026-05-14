@@ -24,79 +24,66 @@ export class FormattingService {
    * @param indentSize Number of spaces for indentation (2 or 4)
    */
   formatDocument(document: TextDocument, indentSize: number = FormattingService.DEFAULT_INDENT_SIZE): TextEdit[] {
-    try {
-      const text = document.getText();
-      const lines = splitLines(text);
-      const edits: TextEdit[] = [];
+    const text = document.getText();
+    const lines = splitLines(text);
+    const edits: TextEdit[] = [];
 
-      let currentIndentLevel = 0;
-      let currentControlRecord = '';
+    let currentIndentLevel = 0;
+    let currentControlRecord = '';
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line) continue;
-        const trimmedLine = line.trim();
-        
-        // Skip empty lines and comments
-        if (trimmedLine.length === 0 || trimmedLine.startsWith(';')) continue;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line) continue;
+      const trimmedLine = line.trim();
+      if (trimmedLine.length === 0 || trimmedLine.startsWith(';')) continue;
 
-        let expectedLine = '';
-        let needsEdit = false;
+      let expectedLine = '';
+      let needsEdit = false;
 
-        // Format control records (ensure they start at column 0)
-        if (trimmedLine.startsWith('$')) {
-          expectedLine = trimmedLine;
-          needsEdit = (line !== expectedLine);
-          currentIndentLevel = 0; // Reset indentation for new control record
-          currentControlRecord = trimmedLine.split(/\s+/)[0]?.toUpperCase() || ''; // Track current control record
+      if (trimmedLine.startsWith('$')) {
+        // Control records start at column 0; reset indent state.
+        expectedLine = trimmedLine;
+        needsEdit = line !== expectedLine;
+        currentIndentLevel = 0;
+        currentControlRecord = trimmedLine.split(/\s+/)[0]?.toUpperCase() || '';
+      } else {
+        // Block body: IF/THEN nests, ELSE/ELSEIF/ENDIF de-nests.
+        if (/^(ELSE|ELSEIF|ENDIF)\b/i.test(trimmedLine)) {
+          if (currentIndentLevel > 0) currentIndentLevel--;
         }
-        // Handle IF/THEN/ELSE/ENDIF indentation
-        else if (trimmedLine.length > 0) {
-          // Check if this line decreases indentation (ELSE, ELSEIF, ENDIF)
-          if (/^(ELSE|ELSEIF|ENDIF)\b/i.test(trimmedLine)) {
-            if (currentIndentLevel > 0) currentIndentLevel--;
-          }
-
-          // Calculate expected indentation
-          const indent = ' '.repeat(Math.max(0, currentIndentLevel) * indentSize + indentSize); // Base + conditional indent
-          expectedLine = indent + trimmedLine;
-          needsEdit = (line !== expectedLine);
-
-          // Check if this line increases indentation (IF...THEN, ELSEIF...THEN)
-          if (/^(IF|ELSEIF)\b.*\bTHEN\s*$/i.test(trimmedLine)) {
-            currentIndentLevel++;
-          }
-          // Handle ELSE (decreases then increases)
-          else if (/^ELSE\s*$/i.test(trimmedLine)) {
-            currentIndentLevel++;
-          }
-        }
-
-        // Apply operator formatting to the expected line if we're in the right context
-        if (currentControlRecord && FormattingService.ASSIGNMENT_CONTEXTS.includes(currentControlRecord)) {
-          expectedLine = this.formatAssignmentOperators(expectedLine);
-        }
-        expectedLine = this.formatArithmeticAndComparisonOperators(expectedLine);
-        
-        if (needsEdit || line !== expectedLine) {
-          edits.push({
-            range: Range.create(i, 0, i, line.length),
-            newText: expectedLine
-          });
+        const indent = ' '.repeat(Math.max(0, currentIndentLevel) * indentSize + indentSize);
+        expectedLine = indent + trimmedLine;
+        needsEdit = line !== expectedLine;
+        if (/^(IF|ELSEIF)\b.*\bTHEN\s*$/i.test(trimmedLine)) {
+          currentIndentLevel++;
+        } else if (/^ELSE\s*$/i.test(trimmedLine)) {
+          currentIndentLevel++;
         }
       }
 
-      if (process.env.NODE_ENV === 'development') {
-        this.connection.console.log(
-          `🎨 Formatted document with ${edits.length} changes using ${indentSize}-space indentation`,
-        );
+      // Operator formatting applies inside abbreviated-code records.
+      if (
+        currentControlRecord &&
+        FormattingService.ASSIGNMENT_CONTEXTS.includes(currentControlRecord)
+      ) {
+        expectedLine = this.formatAssignmentOperators(expectedLine);
       }
-      return edits;
+      expectedLine = this.formatArithmeticAndComparisonOperators(expectedLine);
 
-    } catch (error) {
-      this.connection.console.error(`❌ Error formatting document: ${error}`);
-      return [];
+      if (needsEdit || line !== expectedLine) {
+        edits.push({
+          range: Range.create(i, 0, i, line.length),
+          newText: expectedLine,
+        });
+      }
     }
+
+    if (process.env.NODE_ENV === 'development') {
+      this.connection.console.log(
+        `🎨 Formatted document with ${edits.length} changes using ${indentSize}-space indentation`,
+      );
+    }
+    return edits;
   }
 
   /**
@@ -106,16 +93,11 @@ export class FormattingService {
    * @param indentSize Number of spaces for indentation (2 or 4)
    */
   formatRange(document: TextDocument, range: Range, indentSize: number = FormattingService.DEFAULT_INDENT_SIZE): TextEdit[] {
-    try {
-      const allEdits = this.formatDocument(document, indentSize);
-      return allEdits.filter(edit =>
-        edit.range.start.line >= range.start.line &&
-        edit.range.end.line <= range.end.line
-      );
-    } catch (error) {
-      this.connection.console.error(`Error formatting range: ${error}`);
-      return [];
-    }
+    const allEdits = this.formatDocument(document, indentSize);
+    return allEdits.filter(
+      (edit) =>
+        edit.range.start.line >= range.start.line && edit.range.end.line <= range.end.line,
+    );
   }
 
 

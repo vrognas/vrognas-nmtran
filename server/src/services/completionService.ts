@@ -12,45 +12,37 @@ import { getFullControlRecordName } from '../utils/validateControlRecords';
 import { splitLines } from '../utils/text';
 
 export class CompletionService {
-  private connection: Connection;
-
-  constructor(connection: Connection) {
-    this.connection = connection;
-  }
+  // Connection no longer used internally — errors propagate to server.ts wrapper.
+  // Constructor retained so the wiring in server.ts stays uniform across services.
+  constructor(_connection: Connection) {}
 
   /**
    * Provides completion items at the given position
    */
   provideCompletions(document: TextDocument, position: { line: number; character: number }): CompletionItem[] {
-    try {
-      const text = document.getText();
-      const lines = splitLines(text);
-      const line = lines[position.line] || '';
-      const linePrefix = line.substring(0, position.character);
+    const text = document.getText();
+    const lines = splitLines(text);
+    const line = lines[position.line] || '';
+    const linePrefix = line.substring(0, position.character);
 
-      // Complete control records when user types $
-      if (linePrefix.endsWith('$') || linePrefix.match(/\$[A-Z]*$/)) {
-        return this.getControlRecordCompletions();
-      }
-
-      const currentWord = this.getCurrentWord(linePrefix);
-
-      // Inside $TABLE: suggest reserved diagnostic items
-      if (this.isInTableBlock(lines, position.line)) {
-        return this.getDiagnosticItemCompletions(currentWord);
-      }
-
-      // Complete common NMTRAN parameters
-      if (currentWord.length > 0) {
-        return this.getParameterCompletions(currentWord);
-      }
-
-      return [];
-
-    } catch (error) {
-      this.connection.console.error(`❌ Error providing completions: ${error}`);
-      return [];
+    // Complete control records when user types $.
+    if (linePrefix.endsWith('$') || linePrefix.match(/\$[A-Z]*$/)) {
+      return this.getControlRecordCompletions();
     }
+
+    const currentWord = this.getCurrentWord(linePrefix);
+
+    // Inside $TABLE: suggest reserved diagnostic items.
+    if (this.isInTableBlock(lines, position.line)) {
+      return this.getDiagnosticItemCompletions(currentWord);
+    }
+
+    // Complete common NMTRAN parameters.
+    if (currentWord.length > 0) {
+      return this.getParameterCompletions(currentWord);
+    }
+
+    return [];
   }
 
   /**
