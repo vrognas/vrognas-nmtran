@@ -7,6 +7,48 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.39] - 2026-05-14
+
+### Fixed
+
+* **BLOCK matrix value-position lookup with repeated values.** On a real
+  BLOCK row like ` 0 0.0676983` (every other row of the 13-block prior
+  in the colistin fixture), `processLine` anchored each numeric via
+  `lastIndexOf(prevValue)` + `indexOf(value, that)`. `lastIndexOf('0')`
+  found the `0` *inside* `0.0676983` rather than the standalone `0`;
+  the subsequent `indexOf` returned -1 and the diagonal location got no
+  `startChar`/`endChar`. Hover and F12 would underline nothing. Replaced
+  with `matchAll` on the prefix-stripped substring (via the new
+  `stripParameterPrefix` utility) — each token gets its true position
+  in source order. Pinning test added.
+
+### Changed
+
+Sixth review pass — five focused commits, mostly behavior-preserving.
+
+* **`stripParameterPrefix(line)` extracted** to `utils/text.ts` — returns
+  `{ content, offset }` for the value region after stripping `$RECORD`,
+  optional `BLOCK(n)`, and trailing comment. Replaces the same 12 lines
+  of regex + offset math that appeared in `parameterScanner.findValuePositions`
+  and `blockMatrixScanner.processLine` (and partially in
+  `parseThetaExpressions`).
+* **Inner try/catch dropped from 4 services** (hoverService,
+  definitionService.provideDefinition + provideReferences, completionService,
+  formattingService). The server-level `withDoc` / `withDocAsync` /
+  `withErrorBoundary` wrappers added in 0.4.35 already log + return a
+  fallback for any thrown error; the inner try/catch was swallowing
+  errors before the outer logger could ever fire. ~50 LOC of duplicate
+  error handling gone, single error path. `DiagnosticsService` keeps its
+  try/catch — `validateDocument` runs from a `setTimeout` callback with
+  no outer handler.
+* **`hoverInfo.ts`: 148-LOC switch → 113-LOC `Record` lookup.** Same
+  data, ~25% fewer lines, trivially extensible.
+* **`$SUBS` recognised as a valid control record.** `hoverInfo` had a
+  case for the documented abbreviation of `$SUBROUTINES`, but
+  `allowedControlRecords` didn't list it — the validator would flag
+  `$SUBS` as invalid even though hover would helpfully describe it.
+  Added to the allowlist.
+
 ## [0.4.38] - 2026-05-14
 
 ### Changed
