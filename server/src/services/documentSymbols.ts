@@ -9,7 +9,7 @@
  */
 
 import { DocumentSymbol, SymbolKind, TextDocument } from 'vscode-languageserver/node';
-import type { ParameterLocation } from './ParameterScanner';
+import type { ParameterLocation } from './parameterScanner';
 import {
   locateControlRecordsInText,
   getFullControlRecordName,

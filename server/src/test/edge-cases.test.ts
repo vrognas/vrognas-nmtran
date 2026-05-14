@@ -1,4 +1,4 @@
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 describe('ParameterScanner Edge Cases', () => {

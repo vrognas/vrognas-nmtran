@@ -11,7 +11,7 @@
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { ValidationResult } from './types';
-import { ParameterScanner, type ParameterLocation } from '../services/ParameterScanner';
+import { ParameterScanner, type ParameterLocation } from '../services/parameterScanner';
 import { resolveErrBinding } from '../utils/errBinding';
 import { createParameterReferenceRegex } from '../utils/patterns';
 import { stripComment, splitLines } from '../utils/text';

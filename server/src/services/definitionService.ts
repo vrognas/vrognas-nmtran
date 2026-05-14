@@ -10,7 +10,7 @@
 
 import { Connection, Location, Position } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner, ParameterLocation } from './ParameterScanner';
+import { ParameterScanner, ParameterLocation } from './parameterScanner';
 import { PerformanceMonitor } from '../utils/performanceMonitor';
 import { ABBREVIATED_CODE_BLOCKS } from '../constants';
 import { stripComment, splitLines } from '../utils/text';

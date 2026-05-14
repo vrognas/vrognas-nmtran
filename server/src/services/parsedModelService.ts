@@ -8,7 +8,7 @@
  */
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner, ParameterLocation } from './ParameterScanner';
+import { ParameterScanner, ParameterLocation } from './parameterScanner';
 import {
   ParsedModel,
   ThetaDecl,

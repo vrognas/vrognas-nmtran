@@ -6,7 +6,7 @@ import { HoverService } from '../services/hoverService';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Hover, MarkupContent } from 'vscode-languageserver/node';
 import { createMockConnection, asMockConnection } from './mocks/mockConnection';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 
 // Mock connection
 const mockConnection = asMockConnection(createMockConnection());

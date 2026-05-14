@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { createDocument } from './test-helpers';
 
 describe('ParameterScanner caching', () => {

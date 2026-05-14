@@ -5,7 +5,7 @@
  * including proper syntax and logical bound relationships
  */
 
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { validateParameterBounds } from '../validators/parameterBounds';
 import { createDocument } from './test-helpers';
 

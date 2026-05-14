@@ -29,7 +29,7 @@ import { HoverService } from './services/hoverService';
 import { FormattingService } from './services/formattingService';
 import { CompletionService } from './services/completionService';
 import { DefinitionService } from './services/definitionService';
-import { ParameterScanner } from './services/ParameterScanner';
+import { ParameterScanner } from './services/parameterScanner';
 import { buildParsedModel } from './services/parsedModelService';
 
 import { DEFAULT_SETTINGS, NMTRANSettings } from './types';

@@ -1,7 +1,7 @@
 import { buildDocumentSymbols } from '../services/documentSymbols';
 import { SymbolKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 
 function createTestDocument(content: string): TextDocument {
   return TextDocument.create('test://test.mod', 'nmtran', 1, content);

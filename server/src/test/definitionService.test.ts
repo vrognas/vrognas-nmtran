@@ -2,7 +2,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { DefinitionService } from '../services/definitionService';
 import { Position } from 'vscode-languageserver';
 import { createMockConnection, asMockConnection, MockConnection } from './mocks/mockConnection';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 
 describe('DefinitionService', () => {
   let service: DefinitionService;

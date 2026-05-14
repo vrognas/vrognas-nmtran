@@ -10,7 +10,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { splitLines, findWordStart, findWordEnd } from '../utils/text';
 import { explainControlRecordHover } from '../hoverInfo';
 import { getFullControlRecordName } from '../utils/validateControlRecords';
-import { ParameterScanner, ParameterLocation } from './ParameterScanner';
+import { ParameterScanner, ParameterLocation } from './parameterScanner';
 import { reservedDiagnosticItems, reservedVariables } from '../constants';
 import { resolveErrBinding } from '../utils/errBinding';
 import { createParameterReferenceRegex, createControlRecordRegex } from '../utils/patterns';

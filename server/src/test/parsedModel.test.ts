@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { buildParsedModel } from '../services/parsedModelService';
 
 function doc(content: string): TextDocument {

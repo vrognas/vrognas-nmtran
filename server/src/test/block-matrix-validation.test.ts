@@ -5,7 +5,7 @@
  * including proper matrix structure, element counts, and SAME keyword usage
  */
 
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
 import { validateBlockMatrixSyntax } from '../validators/blockMatrixSyntax';
 import { createDocument } from './test-helpers';

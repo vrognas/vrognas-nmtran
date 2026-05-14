@@ -14,7 +14,7 @@ import {
   locateControlRecordsInText,
   generateDiagnosticForControlRecord,
 } from '../utils/validateControlRecords';
-import { ParameterScanner } from './ParameterScanner';
+import { ParameterScanner } from './parameterScanner';
 import { validateSequentialNumbering } from '../validators/sequentialNumbering';
 import { validateSameKeywordUsage } from '../validators/sameKeywordUsage';
 import { validateComIndices } from '../validators/comIndices';

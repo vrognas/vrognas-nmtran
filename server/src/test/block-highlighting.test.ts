@@ -9,7 +9,7 @@ import { DefinitionService } from '../services/definitionService';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Position } from 'vscode-languageserver';
 import { createMockConnection, asMockConnection, MockConnection } from './mocks/mockConnection';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 
 describe('BLOCK(1) Highlighting', () => {
   let mockConnection: MockConnection;

@@ -3,7 +3,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { Hover, MarkupContent, Connection } from 'vscode-languageserver/node';
 import { HoverService } from '../services/hoverService';
 import { CompletionService } from '../services/completionService';
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { createMockConnection, asMockConnection } from './mocks/mockConnection';
 
 const mockConnection = asMockConnection(createMockConnection());

@@ -1,4 +1,4 @@
-import { ParameterScanner } from '../services/ParameterScanner';
+import { ParameterScanner } from '../services/parameterScanner';
 import { validateSequentialNumbering } from '../validators/sequentialNumbering';
 import { validateParameterReferences } from '../validators/parameterReferences';
 import { TextDocument } from 'vscode-languageserver-textdocument';

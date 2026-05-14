@@ -8,7 +8,7 @@
  * a specific text range.
  */
 
-import type { ParameterLocation } from '../services/ParameterScanner';
+import type { ParameterLocation } from '../services/parameterScanner';
 
 export interface SequentialNumberingResult {
   isValid: boolean;
