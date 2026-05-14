@@ -10,8 +10,14 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ConfigurationService } from './config';
-import { Logger } from './logger';
+import { refreshConfig } from './config';
+import {
+  logActivation,
+  logCompletion,
+  logDebug,
+  logError,
+  logInfo,
+} from './logger';
 import { NMTRANFoldingProvider } from './features/foldingProvider';
 import { LanguageServerManager } from './features/languageServer';
 import { VerbatimDecorator } from './features/verbatimDecorator';
@@ -24,12 +30,10 @@ let languageServerManager: LanguageServerManager;
  * Called when the extension is activated (when NMTRAN files are opened)
  */
 export async function activate(context: vscode.ExtensionContext): Promise<NmtranApi> {
-  const logger = Logger.getInstance();
-
   try {
-    logger.activation('Starting activation...');
-    logger.debug('Extension path:', context.extensionPath);
-    logger.debug('Extension version:', getExtensionVersion(context));
+    logActivation('Starting activation...');
+    logDebug('Extension path:', context.extensionPath);
+    logDebug('Extension version:', getExtensionVersion(context));
 
     // Register language features
     await registerLanguageFeatures(context);
@@ -48,7 +52,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Nmtran
       ),
     );
 
-    logger.completion('Activation completed successfully');
+    logCompletion('Activation completed successfully');
 
     // Return the public API for companion extensions to consume.
     return {
@@ -62,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Nmtran
       },
     };
   } catch (error) {
-    logger.error('Extension activation failed:', error);
+    logError('Extension activation failed:', error);
     throw error;
   }
 }
@@ -71,22 +75,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<Nmtran
  * Register language features like folding
  */
 async function registerLanguageFeatures(context: vscode.ExtensionContext): Promise<void> {
-  const logger = Logger.getInstance();
-  
-  logger.info('Registering language features...');
-  
-  // Register folding provider
+  logInfo('Registering language features...');
+
   const foldingProvider = vscode.languages.registerFoldingRangeProvider(
     { language: 'nmtran', scheme: 'file' },
-    new NMTRANFoldingProvider()
+    new NMTRANFoldingProvider(),
   );
-
   context.subscriptions.push(foldingProvider);
-  logger.debug('Folding provider registered');
+  logDebug('Folding provider registered');
 
-  // Register verbatim FORTRAN decorator (background highlight for "-prefixed lines)
+  // Verbatim FORTRAN decorator (background highlight for "-prefixed lines).
   context.subscriptions.push(new VerbatimDecorator());
-  logger.debug('Verbatim decorator registered');
+  logDebug('Verbatim decorator registered');
 }
 
 /**
@@ -101,15 +101,11 @@ async function startLanguageServer(context: vscode.ExtensionContext): Promise<vo
  * Setup configuration change handlers
  */
 function setupConfigurationHandlers(context: vscode.ExtensionContext): void {
-  const config = ConfigurationService.getInstance();
-
-  const configSubscription = vscode.workspace.onDidChangeConfiguration((event) => {
-    if (event.affectsConfiguration('nmtran')) {
-      config.refresh();
-    }
-  });
-
-  context.subscriptions.push(configSubscription);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('nmtran')) refreshConfig();
+    }),
+  );
 }
 
 /**
@@ -157,17 +153,13 @@ function getExtensionVersion(context: vscode.ExtensionContext): string {
  * Properly shuts down the language server to free resources
  */
 export async function deactivate(): Promise<void> {
-  const logger = Logger.getInstance();
-  
   try {
-    logger.info('Deactivating extension...');
-    
+    logInfo('Deactivating extension...');
     if (languageServerManager?.isRunning()) {
       await languageServerManager.stop();
     }
-    
-    logger.info('Extension deactivated successfully');
+    logInfo('Extension deactivated successfully');
   } catch (error) {
-    logger.error('Error during deactivation:', error);
+    logError('Error during deactivation:', error);
   }
 }

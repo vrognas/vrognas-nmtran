@@ -1,8 +1,9 @@
 /**
- * Configuration Service
- * 
- * Centralized configuration management for the NMTRAN extension.
- * Handles debug settings, paths, and other configurable options.
+ * Configuration access for the NMTRAN extension.
+ *
+ * Loads from `vscode.workspace.getConfiguration('nmtran')` lazily on
+ * first read and caches the result; `refresh()` re-reads on
+ * configuration-change events.
  */
 
 import * as vscode from 'vscode';
@@ -21,48 +22,38 @@ export interface ExtensionConfig {
   };
 }
 
-export class ConfigurationService {
-  private static instance: ConfigurationService;
-  private config: ExtensionConfig;
+let cached: ExtensionConfig | null = null;
 
-  private constructor() {
-    this.config = this.loadConfiguration();
-  }
+function load(): ExtensionConfig {
+  const vsConfig = vscode.workspace.getConfiguration('nmtran');
+  return {
+    debug: {
+      enabled: process.env.NODE_ENV === 'development' || vsConfig.get('debug.enabled', false),
+      logLevel: vsConfig.get('debug.logLevel', 'info'),
+    },
+    server: {
+      port: vsConfig.get('server.debugPort', 6009),
+      timeout: vsConfig.get('server.timeout', 2000),
+    },
+    paths: {
+      serverModule: 'dist/server.js',
+    },
+  };
+}
 
-  public static getInstance(): ConfigurationService {
-    if (!ConfigurationService.instance) {
-      ConfigurationService.instance = new ConfigurationService();
-    }
-    return ConfigurationService.instance;
-  }
+function ensure(): ExtensionConfig {
+  if (!cached) cached = load();
+  return cached;
+}
 
-  private loadConfiguration(): ExtensionConfig {
-    const vsConfig = vscode.workspace.getConfiguration('nmtran');
-    
-    return {
-      debug: {
-        enabled: process.env.NODE_ENV === 'development' || vsConfig.get('debug.enabled', false),
-        logLevel: vsConfig.get('debug.logLevel', 'info')
-      },
-      server: {
-        port: vsConfig.get('server.debugPort', 6009),
-        timeout: vsConfig.get('server.timeout', 2000)
-      },
-      paths: {
-        serverModule: 'dist/server.js'
-      }
-    };
-  }
+export function getConfig<K extends keyof ExtensionConfig>(key: K): ExtensionConfig[K] {
+  return ensure()[key];
+}
 
-  public get<K extends keyof ExtensionConfig>(key: K): ExtensionConfig[K] {
-    return this.config[key];
-  }
+export function isDebugEnabled(): boolean {
+  return ensure().debug.enabled;
+}
 
-  public isDebugEnabled(): boolean {
-    return this.config.debug.enabled;
-  }
-
-  public refresh(): void {
-    this.config = this.loadConfiguration();
-  }
+export function refreshConfig(): void {
+  cached = load();
 }
