@@ -1,8 +1,8 @@
 # NMTRAN (NONMEM) Language Extension for VSCode <img src="images/nmtran.png" align="right" height="160" alt="NMTRAN Logo" />
 
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/vrognas/vscode-nmtran/ci.yml)
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/vrognas/vrognas-nmtran/ci.yml)
 ![Visual Studio Marketplace Downloads](https://img.shields.io/visual-studio-marketplace/d/vrognas.nmtran)
-![GitHub License](https://img.shields.io/github/license/vrognas/vscode-nmtran)
+![GitHub License](https://img.shields.io/github/license/vrognas/vrognas-nmtran)
 
 > [!NOTE]
 > This extension is currently in active development.
@@ -94,8 +94,8 @@ auxiliary files where validation would produce false positives.
 ## Community & support
 
 - **Documentation**: [NMTRAN Reference](https://nmhelp.tingjieguo.com)
-- **Issues & Feature Requests**: [GitHub Issues](https://github.com/vrognas/vscode-nmtran/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/vrognas/vscode-nmtran/discussions)
+- **Issues & Feature Requests**: [GitHub Issues](https://github.com/vrognas/vrognas-nmtran/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/vrognas/vrognas-nmtran/discussions)
 - **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Sponsor**: [Buy me a coffee ☕](https://buymeacoffee.com/vrognas)
 
@@ -103,8 +103,8 @@ auxiliary files where validation would produce false positives.
 
 Whether you're fixing bugs, adding features, or improving documentation, your help makes this extension better for the pharmacometrics community.
 
-- 🐛 **Bug reports**: [GitHub Issues](https://github.com/vrognas/vscode-nmtran/issues)
-- 💡 **Feature requests**: [GitHub Discussions](https://github.com/vrognas/vscode-nmtran/discussions)
+- 🐛 **Bug reports**: [GitHub Issues](https://github.com/vrognas/vrognas-nmtran/issues)
+- 💡 **Feature requests**: [GitHub Discussions](https://github.com/vrognas/vrognas-nmtran/discussions)
 - 🔧 **Pull requests**: See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 - 📖 **Documentation**: Help improve our docs and examples
 

@@ -12,7 +12,7 @@ Only the latest release receives security updates.
 ## Reporting a Vulnerability
 
 Please report security vulnerabilities through
-[GitHub's private vulnerability reporting](https://github.com/vrognas/vscode-nmtran/security/advisories/new).
+[GitHub's private vulnerability reporting](https://github.com/vrognas/vrognas-nmtran/security/advisories/new).
 
 Do **not** open a public issue for security vulnerabilities.
 

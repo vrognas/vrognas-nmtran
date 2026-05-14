@@ -16,8 +16,8 @@ Optional: TypeScript and ESLint VSCode extensions for better development experie
 
 ```bash
 # Fork on GitHub, then clone
-git clone https://github.com/YOUR_USERNAME/vscode-nmtran.git
-cd vscode-nmtran
+git clone https://github.com/YOUR_USERNAME/vrognas-nmtran.git
+cd vrognas-nmtran
 
 # Install dependencies (includes client and server)
 npm install
@@ -211,8 +211,8 @@ Use "Debug Extension + Server" launch configuration for full breakpoint debuggin
 
 ## Getting Help
 
-- [GitHub Discussions](https://github.com/vrognas/vscode-nmtran/discussions) - Questions
-- [GitHub Issues](https://github.com/vrognas/vscode-nmtran/issues) - Bugs and features
+- [GitHub Discussions](https://github.com/vrognas/vrognas-nmtran/discussions) - Questions
+- [GitHub Issues](https://github.com/vrognas/vrognas-nmtran/issues) - Bugs and features
 - [CLAUDE.md](CLAUDE.md) - Technical design details
 
 ---

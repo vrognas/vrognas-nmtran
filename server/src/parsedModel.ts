@@ -81,7 +81,7 @@ export interface Equation {
  * Surfaced by the consumer (positron-nonmem Fit Inspector) as P / PV /
  * PD columns alongside the parameter tables.
  *
- * Available from vscode-nmtran ≥ 0.4.23.
+ * Available from vrognas-nmtran ≥ 0.4.23.
  */
 export interface PriorDecl {
   /** 1-based parameter index this prior applies to. */

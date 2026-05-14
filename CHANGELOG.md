@@ -1,11 +1,17 @@
 # Changelog
 
-All notable changes to vscode-nmtran are documented here.
+All notable changes to vrognas-nmtran are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
+
+## [0.4.40] - 2026-05-14
+
+### Changed
+
+- Renamed repository / internal package identifiers from `vscode-nmtran` to `vrognas-nmtran`. Marketplace extension ID (`vrognas.nmtran`) is unchanged — no user impact.
 
 ## [0.4.39] - 2026-05-14
 

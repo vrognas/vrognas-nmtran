@@ -1,6 +1,6 @@
 {
   "name": "nmtran",
-  "version": "0.4.39",
+  "version": "0.4.40",
   "license": "MIT",
   "displayName": "NMTRAN",
   "publisher": "vrognas",
@@ -25,20 +25,20 @@
     "popPK",
     "nlme"
   ],
-  "homepage": "https://github.com/vrognas/vscode-nmtran",
+  "homepage": "https://github.com/vrognas/vrognas-nmtran",
   "bugs": {
-    "url": "https://github.com/vrognas/vscode-nmtran/issues",
+    "url": "https://github.com/vrognas/vrognas-nmtran/issues",
     "email": "viktor@vrognas.com"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/vrognas/vscode-nmtran.git"
+    "url": "https://github.com/vrognas/vrognas-nmtran.git"
   },
   "galleryBanner": {
     "color": "#1e1e1e",
     "theme": "dark"
   },
-  "qna": "https://github.com/vrognas/vscode-nmtran/discussions",
+  "qna": "https://github.com/vrognas/vrognas-nmtran/discussions",
   "activationEvents": [],
   "extensionKind": [
     "workspace"
