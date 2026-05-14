@@ -57,6 +57,7 @@ export const allowedControlRecords = [
   '$SIZES',
   '$SLKJDF',
   '$SUBROUTINES',
+  '$SUBS',
   '$SUPER',
   '$SVARF',
   '$TABLE',
