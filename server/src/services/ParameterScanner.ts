@@ -117,12 +117,7 @@ export class ParameterScanner {
 
       // Process parameters if in a parameter block
       if (state.currentBlockType) {
-        const lineLocations = this.processParameterLine(
-          line, 
-          lineNum, 
-          state, 
-          document
-        );
+        const lineLocations = this.processParameterLine(line, lineNum, state);
         locations.push(...lineLocations);
       }
     }
@@ -229,10 +224,9 @@ export class ParameterScanner {
    * Process a line containing parameters
    */
   private static processParameterLine(
-    line: string, 
-    lineNum: number, 
+    line: string,
+    lineNum: number,
     state: ScannerState,
-    document: TextDocument
   ): ParameterLocation[] {
     const locations: ParameterLocation[] = [];
     const trimmed = line.trim();
@@ -287,48 +281,34 @@ export class ParameterScanner {
           locations.push(location);
         }
       } else {
-        // For OMEGA/SIGMA, use simpler processing (they typically don't have complex FIXED syntax)
+        // OMEGA/SIGMA non-block: collect every value position on the line up
+        // front, then assign the i-th position to the i-th parameter.
+        const valuePositions = this.findValuePositions(line);
+
+        // FIXED keywords on this line apply to every parameter on the line.
+        const fixedMatches: Array<{ startChar: number; endChar: number }> = [];
+        for (const m of line.matchAll(PARAMETER_PATTERNS.FIXED)) {
+          fixedMatches.push({
+            startChar: m.index!,
+            endChar: m.index! + m[0].length,
+          });
+        }
+
         for (let i = 0; i < paramCount; i++) {
           const blockType = state.currentBlockType;
           if (!blockType) continue;
-          
+
           state.counters[blockType]++;
-          
+
+          const pos = valuePositions[i];
           const location: ParameterLocation = {
             type: blockType,
             index: state.counters[blockType],
-            line: lineNum
+            line: lineNum,
+            ...(pos ? { startChar: pos.start, endChar: pos.end } : {}),
+            ...(fixedMatches.length > 0 ? { additionalRanges: fixedMatches } : {}),
           };
-          
-          const valuePosition = this.findParameterValuePosition(
-            line,
-            lineNum,
-            blockType,
-            1,
-            false,
-            i + 1,
-            document
-          );
-          
-          if (valuePosition) {
-            location.startChar = valuePosition.start;
-            location.endChar = valuePosition.end;
-          }
-          
-          // Check for FIXED keyword on this line (simpler approach for OMEGA/SIGMA)
-          PARAMETER_PATTERNS.FIXED.lastIndex = 0; // Reset global regex
-          const fixedMatches = [];
-          let match;
-          while ((match = PARAMETER_PATTERNS.FIXED.exec(line)) !== null) {
-            fixedMatches.push({
-              startChar: match.index,
-              endChar: match.index + match[0].length
-            });
-          }
-          if (fixedMatches.length > 0) {
-            location.additionalRanges = fixedMatches;
-          }
-          
+
           locations.push(location);
         }
       }
@@ -631,110 +611,45 @@ export class ParameterScanner {
   }
 
   /**
-   * Find the position of a parameter value
-   * Delegates to appropriate finder based on parameter type
+   * Locate every parameter value on a non-block OMEGA/SIGMA line, in order.
+   * SAME yields a single position (the SAME keyword). Otherwise every numeric
+   * token after the $RECORD + BLOCK(n) prefix is returned.
+   *
+   * Absolute character offsets relative to the original `line`.
    */
-  private static findParameterValuePosition(
-    line: string,
-    _lineNum: number,
-    _paramType: 'THETA' | 'ETA' | 'EPS',
-    paramIndex: number,
-    inBlockMatrix: boolean,
-    _positionInLine: number,
-    _document: TextDocument
-  ): { start: number; end: number } | null {
+  private static findValuePositions(line: string): Array<{ start: number; end: number }> {
     const trimmed = line.trim();
-    
-    
-    // Handle SAME keyword
+
     if (PARAMETER_PATTERNS.SAME.test(trimmed)) {
       const match = trimmed.match(PARAMETER_PATTERNS.SAME);
       if (match && match.index !== undefined) {
         const start = line.indexOf(match[0]);
-        return {
-          start: start,
-          end: start + match[0].length
-        };
+        if (start !== -1) return [{ start, end: start + match[0].length }];
       }
+      return [];
     }
-    
-    // For BLOCK(1) or regular parameters, find the first numeric value
-    // Remove control record prefix and BLOCK(n) pattern
-    let searchText = trimmed;
+
+    // Compute offset of the value region in the original line so numeric
+    // indexes can be lifted back to absolute char positions.
+    let offset = 0;
+    let searchText = line;
     const controlMatch = searchText.match(/^\s*\$\w+\s*/i);
     if (controlMatch) {
+      offset += controlMatch[0].length;
       searchText = searchText.substring(controlMatch[0].length);
     }
-    
     const blockMatch = searchText.match(/^BLOCK\(\d+\)\s*/i);
     if (blockMatch) {
+      offset += blockMatch[0].length;
       searchText = searchText.substring(blockMatch[0].length);
     }
-    
-    // Remove comment part
     searchText = stripComment(searchText);
-    
-    // For BLOCK matrices, find the specific diagonal element
-    if (inBlockMatrix) {
-      // For multi-line BLOCK matrices, each continuation line has one diagonal parameter
-      // The position within the row equals the parameter index within the block
-      // E.g., for BLOCK(2): line 1 has 1 value (diagonal pos 1), line 2 has 2 values (diagonal pos 2)
-      
-      // Find all numeric values on this line
-      PARAMETER_PATTERNS.NUMERIC.lastIndex = 0; // Reset global regex
-      const matches = [];
-      let match;
-      
-      while ((match = PARAMETER_PATTERNS.NUMERIC.exec(searchText)) !== null) {
-        matches.push({
-          value: match[0],
-          index: match.index
-        });
-      }
-      
-      // For multi-line blocks, the diagonal position equals the parameter index
-      // For single-line blocks with all values, use the diagonal position calculation
-      const targetPosition = matches.length === 1 ? 0 : paramIndex - 1;
-      
-      // Debug: Remove after testing
-      // console.log(`BLOCK: Found ${matches.length} values, using position ${targetPosition} for paramIndex ${paramIndex}`);
-      
-      if (matches.length > targetPosition && targetPosition >= 0) {
-        const targetMatch = matches[targetPosition];
-        if (targetMatch) {
-          const numericValue = targetMatch.value;
-          const absoluteStart = line.indexOf(numericValue, targetMatch.index > 0 ? line.indexOf(searchText) : 0);
-        
-          if (absoluteStart !== -1) {
-            // Debug: Remove after testing
-            // console.log(`Found: "${numericValue}" at ${absoluteStart}-${absoluteStart + numericValue.length}`);
-            return {
-              start: absoluteStart,
-              end: absoluteStart + numericValue.length
-            };
-          }
-        }
-      }
-    } else {
-      // For regular parameters or first diagonal element, find first numeric value
-      const match = searchText.match(PARAMETER_PATTERNS.NUMERIC_SINGLE);
-      
-      if (match && match.index !== undefined) {
-        // Find the absolute position in the original line by searching for the numeric value
-        const numericValue = match[0];
-        const absoluteStart = line.indexOf(numericValue);
-        
-        if (absoluteStart !== -1) {
-          return {
-            start: absoluteStart,
-            end: absoluteStart + numericValue.length
-          };
-        }
-      }
+
+    const positions: Array<{ start: number; end: number }> = [];
+    for (const m of searchText.matchAll(PARAMETER_PATTERNS.NUMERIC)) {
+      const start = offset + (m.index ?? 0);
+      positions.push({ start, end: start + m[0].length });
     }
-    
-    return null;
+    return positions;
   }
-
-
 }

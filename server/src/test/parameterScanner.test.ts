@@ -58,6 +58,24 @@ describe('ParameterScanner BLOCK Matrix Tests', () => {
     expect(eta5?.endChar).toBeDefined();
   });
 
+  test('multi-value diagonal OMEGA assigns distinct positions to each ETA', () => {
+    // Regression pin: previously every ETA on `$OMEGA 0.1 0.2 0.3` got the
+    // position of the first value (0.1) — findParameterValuePosition ignored
+    // the per-iteration index and returned the first numeric every time.
+    const content = '$OMEGA 0.1 0.2 0.3';
+    const document = TextDocument.create('test://test.mod', 'nmtran', 1, content);
+    const locations = ParameterScanner.scanDocument(document);
+
+    const etas = locations.filter(l => l.type === 'ETA');
+    expect(etas).toHaveLength(3);
+
+    const slice = (loc: typeof etas[number]) =>
+      content.substring(loc.startChar ?? -1, loc.endChar ?? -1);
+    expect(slice(etas[0]!)).toBe('0.1');
+    expect(slice(etas[1]!)).toBe('0.2');
+    expect(slice(etas[2]!)).toBe('0.3');
+  });
+
   test('should handle complex THETA line with FIXED keywords', () => {
     const content = `$THETA  (0,3) 2 FIXED (0,.6,1) 10 (-INF,-2.7,0) (37 FIXED) 4 FIX`;
     const document = TextDocument.create('test://test.mod', 'nmtran', 1, content);
