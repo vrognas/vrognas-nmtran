@@ -59,21 +59,21 @@ const documentSettings: Map<string, Thenable<NMTRANSettings>> = new Map();
 
 function getDocumentSettings(resource: string): Thenable<NMTRANSettings> {
   if (!documentSettings.has(resource)) {
-    const result = Promise.all([
-      connection.workspace.getConfiguration({ scopeUri: resource, section: 'nmtranServer' }),
-      connection.workspace.getConfiguration({ scopeUri: resource, section: 'nmtran' }),
-    ]).then(([serverConfig, nmtranConfig]) => ({
-      maxNumberOfProblems: serverConfig?.maxNumberOfProblems ?? DEFAULT_SETTINGS.maxNumberOfProblems,
-      formatting: {
-        indentSize: Math.max(
-          2,
-          Math.min(
-            4,
-            nmtranConfig?.formatting?.indentSize ?? DEFAULT_SETTINGS.formatting?.indentSize ?? 2,
+    const result = connection.workspace
+      .getConfiguration({ scopeUri: resource, section: 'nmtran' })
+      .then((nmtranConfig) => ({
+        maxNumberOfProblems:
+          nmtranConfig?.server?.maxNumberOfProblems ?? DEFAULT_SETTINGS.maxNumberOfProblems,
+        formatting: {
+          indentSize: Math.max(
+            2,
+            Math.min(
+              4,
+              nmtranConfig?.formatting?.indentSize ?? DEFAULT_SETTINGS.formatting?.indentSize ?? 2,
+            ),
           ),
-        ),
-      },
-    }));
+        },
+      }));
     documentSettings.set(resource, result);
     return result;
   }

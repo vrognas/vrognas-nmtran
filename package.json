@@ -1,6 +1,6 @@
 {
   "name": "nmtran",
-  "version": "0.4.40",
+  "version": "0.5.0",
   "license": "MIT",
   "displayName": "NMTRAN",
   "publisher": "vrognas",
@@ -105,7 +105,7 @@
       "type": "object",
       "title": "NMTRAN configuration",
       "properties": {
-        "nmtranServer.maxNumberOfProblems": {
+        "nmtran.server.maxNumberOfProblems": {
           "scope": "resource",
           "type": "number",
           "default": 100,

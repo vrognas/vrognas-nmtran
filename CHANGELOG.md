@@ -7,6 +7,12 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-14
+
+### Changed (breaking)
+
+- Renamed setting `nmtranServer.maxNumberOfProblems` → `nmtran.server.maxNumberOfProblems` to consolidate all extension settings under the `nmtran.*` namespace (matches existing `nmtran.server.debugPort`). Users with the old key set must migrate.
+
 ## [0.4.40] - 2026-05-14
 
 ### Changed
