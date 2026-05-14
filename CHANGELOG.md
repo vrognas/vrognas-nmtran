@@ -7,6 +7,32 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.38] - 2026-05-14
+
+### Changed
+
+* **BLOCK matrix state machine extracted from `ParameterScanner`** into a
+  new `services/blockMatrixScanner.ts`. Previously `ParameterScanner`
+  was a 655-LOC class with three different parameter shapes (THETA
+  expressions / diagonal OMEGA/SIGMA / BLOCK(n) lower-triangular matrices)
+  sharing a single `ScannerState`. The BLOCK fields (`inBlockMatrix`,
+  `blockMatrixRemaining`, `blockElementsSeen`, `blockFixedKeywords`)
+  and their nine helpers (`detectBlockMatrix`,
+  `detectBlockFixedKeywords`, `processBlockMatrixLine`,
+  `countBlockMatrixParameters`, `countParametersOnLine`,
+  `countRegularParameters`, `countNumericValues`, `removeKeywords`,
+  ...) all moved into a focused `BlockMatrixScanner` class.
+
+  `ParameterScanner` is now a thin orchestrator: per line, decide which
+  of three paths to take (THETA → `parseThetaExpressions`; OMEGA/SIGMA
+  diagonal → `findValuePositions`; BLOCK matrix → delegate to active
+  `BlockMatrixScanner` instance), allocate indices from its own counters,
+  emit `ParameterLocation`. Each path sizes its own loop — the
+  parameter-counting helpers are gone.
+
+  `parameterScanner.ts`: 525 → 365 LOC. New `blockMatrixScanner.ts` is
+  142 LOC. Same behaviour: 257/257 server tests + 5/5 e2e green.
+
 ## [0.4.37] - 2026-05-14
 
 ### Fixed
