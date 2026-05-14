@@ -7,6 +7,57 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.37] - 2026-05-14
+
+### Fixed
+
+* **Multi-value diagonal `$OMEGA` / `$SIGMA` lines now assign distinct
+  positions** to each ETA / EPS. Previously `$OMEGA 0.1 0.2 0.3` gave
+  ETA(1), ETA(2), ETA(3) all the position of the first value (0.1) —
+  `findParameterValuePosition` ignored the per-iteration index and
+  returned the first numeric match every call. Hover / Go-to-Definition
+  / Find-References on ETA(2) and ETA(3) in this form now point to the
+  right value. Pinning test added to `parameterScanner.test.ts`.
+
+### Changed
+
+Sweep of deferred items — six focused commits, no client-visible
+behavior change beyond the bug fix above.
+
+* **`ParameterScanner.findParameterValuePosition` replaced with
+  `findValuePositions`** — returns every value position on the line in
+  order instead of just the first. Removed 4 unused parameters and a
+  dead `inBlockMatrix=true` branch the caller never invoked.
+  `processParameterLine`'s `TextDocument` parameter is now unused;
+  dropped. Net: -130 LOC in `ParameterScanner`.
+* **`ParameterScanner.ts` renamed to `parameterScanner.ts`.** The only
+  PascalCase-named file in a sea of camelCase services. Class name
+  stays PascalCase; just the filename moves. 22 import paths updated.
+  Windows is case-insensitive so the old paths kept resolving locally,
+  but Linux/macOS builds (CI, marketplace consumers) would have failed
+  on the stale imports.
+* **`Logger` and `ConfigurationService` lost their singleton ceremony.**
+  Both were `private constructor` + `getInstance` + internal state.
+  Replaced with module-level cached state + exported functions
+  (`getConfig`, `isDebugEnabled`, `refreshConfig`; `logError`, `logWarn`,
+  `logInfo`, `logDebug`, plus the three convenience wrappers). Same
+  output, less ceremony. `LanguageServerManager` constructor body
+  dropped.
+* **`FormattingService` gained tests** — 3 e2e cases through the public
+  `formatDocument` API: control records at column 0, `IF / THEN / ENDIF`
+  nesting, and the fragile scientific-notation guard inside
+  `formatMinusOperator` (the case where `1E-2` must not split across
+  the binary-minus pass).
+* **Wire-format equivalence test added.** `server/src/parsedModel.ts`
+  and `client/src/parsedModelApi.ts` deliberately duplicate the LSP
+  wire types until they share a workspace package. A compile-time
+  bidirectional assignability check catches drift on either side
+  before tests run; the runtime body is a no-op.
+* **`ThetaDecl.init` JSDoc documents the `(low,,upper)` edge case.**
+  NMTRAN permits an omitted init in a bound triple; the parser emits
+  `NaN`, which JSON-serialises as `null` over the LSP wire. Consumers
+  should guard with `Number.isFinite(init)` before computing.
+
 ## [0.4.36] - 2026-05-14
 
 ### Changed
