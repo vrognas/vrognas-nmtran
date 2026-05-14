@@ -72,16 +72,23 @@ $OMEGA  BLOCK(1)  SAME`;
 
     it('should handle mixed BLOCK and diagonal OMEGA', async () => {
       const content = `$OMEGA  BLOCK(2) 0.0444 0.027 0.0241
-$OMEGA  0.5   ; Simple diagonal
+$OMEGA  0.5
 $OMEGA  BLOCK(1) 3.0`;
-      
+
       const _doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
-      
-      // Should correctly identify:
-      // ETA(1) -> 0.0444 (from BLOCK(2))
-      // ETA(2) -> 0.0241 (from BLOCK(2))
-      // ETA(3) -> 0.5 (simple diagonal)
-      // ETA(4) -> 3.0 (from BLOCK(1))
+
+      // ETA(1) -> 0.0444 on line 0.
+      const eta1 = await service.provideDefinition(_doc, Position.create(0, 17));
+      expect(eta1?.[0]?.range.start.line).toBe(0);
+      // ETA(2) -> 0.0241 on line 0.
+      const eta2 = await service.provideDefinition(_doc, Position.create(0, 30));
+      expect(eta2?.[0]?.range.start.line).toBe(0);
+      // ETA(3) -> 0.5 on line 1.
+      const eta3 = await service.provideDefinition(_doc, Position.create(1, 8));
+      expect(eta3?.[0]?.range.start.line).toBe(1);
+      // ETA(4) -> 3.0 on line 2.
+      const eta4 = await service.provideDefinition(_doc, Position.create(2, 17));
+      expect(eta4?.[0]?.range.start.line).toBe(2);
     });
   });
 
@@ -257,11 +264,21 @@ $ESTIMATION METHOD=1 MAXEVAL=9999`;
 
       const _doc = TextDocument.create('test://test.mod', 'nmtran', 1, content);
 
-      // Test various parameter references
-      // THETA(1) in $PK should navigate to 0.5
-      // ETA(2) should navigate to 0.0241 (diagonal of BLOCK(2))
-      // ETA(3) should navigate to 0.1
-      // EPS(1) should navigate to 0.01
+      // THETA(1) reference in $PK (line 6) navigates to $THETA 0.5 (line 13).
+      const t1 = await service.provideDefinition(_doc, Position.create(6, 8));
+      expect(t1?.[0]?.range.start.line).toBe(13);
+
+      // ETA(2) reference (line 7) navigates to BLOCK(2)'s 2nd diagonal (line 17).
+      const e2 = await service.provideDefinition(_doc, Position.create(7, 23));
+      expect(e2?.[0]?.range.start.line).toBe(17);
+
+      // ETA(3) reference (line 8) navigates to $OMEGA 0.1 (line 18).
+      const e3 = await service.provideDefinition(_doc, Position.create(8, 23));
+      expect(e3?.[0]?.range.start.line).toBe(18);
+
+      // EPS(1) reference (line 11) navigates to $SIGMA 0.01 (line 20).
+      const eps1 = await service.provideDefinition(_doc, Position.create(11, 11));
+      expect(eps1?.[0]?.range.start.line).toBe(20);
     });
   });
 

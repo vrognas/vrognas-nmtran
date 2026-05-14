@@ -75,8 +75,8 @@ export function validateParameterReferencesWithParameters(
       errors.push({
         message: `${param.type}(${param.index}) defined but never referenced`,
         line: param.line,
-        startChar: param.startChar || 0,
-        endChar: param.endChar || 0,
+        startChar: param.startChar ?? 0,
+        endChar: param.endChar ?? 0,
       });
     }
   }

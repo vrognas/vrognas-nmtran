@@ -86,7 +86,11 @@ export class FormattingService {
         }
       }
 
-      this.connection.console.log(`🎨 Formatted document with ${edits.length} changes using ${indentSize}-space indentation`);
+      if (process.env.NODE_ENV === 'development') {
+        this.connection.console.log(
+          `🎨 Formatted document with ${edits.length} changes using ${indentSize}-space indentation`,
+        );
+      }
       return edits;
 
     } catch (error) {
