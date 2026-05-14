@@ -37,8 +37,8 @@ export class FormattingService {
       const trimmedLine = line.trim();
       if (trimmedLine.length === 0 || trimmedLine.startsWith(';')) continue;
 
-      let expectedLine = '';
-      let needsEdit = false;
+      let expectedLine: string;
+      let needsEdit: boolean;
 
       if (trimmedLine.startsWith('$')) {
         // Control records start at column 0; reset indent state.
