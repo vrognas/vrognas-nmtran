@@ -133,7 +133,7 @@ export class DiagnosticsService {
     try {
       if (!isDiagnosableSourceFile(document.uri)) {
         // Clear any stale diagnostics (e.g. file was renamed from .mod) and bail.
-        this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+        await this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
         return;
       }
 
@@ -162,11 +162,11 @@ export class DiagnosticsService {
       pushPositional(diagnostics, validateComIndices(document));
       pushPositional(diagnostics, validateInfinityTokenUsage(document));
 
-      this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
+      await this.connection.sendDiagnostics({ uri: document.uri, diagnostics });
     } catch (error) {
       this.connection.console.error(`❌ Error validating document: ${error}`);
       // Don't crash the server on validation errors.
-      this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
+      await this.connection.sendDiagnostics({ uri: document.uri, diagnostics: [] });
     }
   }
 }

@@ -9,6 +9,14 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
+      parserOptions: {
+        project: [
+          './client/tsconfig.json',
+          './server/tsconfig.json',
+          './server/tsconfig.test.json',
+        ],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', {
@@ -17,6 +25,8 @@ export default tseslint.config(
         caughtErrorsIgnorePattern: '^_'
       }],
       '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
       'no-console': 'off',
     },
   },

@@ -305,7 +305,7 @@ connection.onDidOpenTextDocument((params) =>
       params.textDocument.text,
     );
     services.document.setDocument(doc);
-    services.diagnostics.validateDocument(doc);
+    void services.diagnostics.validateDocument(doc);
   }),
 );
 
@@ -342,7 +342,7 @@ connection.onDidCloseTextDocument((params) =>
     services.diagnostics.dispose(uri);
     documentSettings.delete(uri);
 
-    connection.sendDiagnostics({ uri, diagnostics: [] });
+    void connection.sendDiagnostics({ uri, diagnostics: [] });
   }),
 );
 
