@@ -19,7 +19,7 @@
     "@types/vscode": "~1.109.0",
     "@types/mocha": "^10.0.0",
     "@vscode/test-electron": "^2.4.1",
-    "mocha": "^11.7.5"
+    "mocha": "^11.7.6"
   },
   "scripts": {
     "test": "node ./out/test/runTest.js",
