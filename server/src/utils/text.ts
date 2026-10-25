@@ -56,10 +56,11 @@ export function stripBlockPrefix(line: string): string {
 }
 
 /**
- * Strip a $RECORD prefix, an optional `BLOCK(n)` prefix, and any trailing
- * comment — returning the value-content and the absolute char offset of
- * that content in the original line. Used by parameter scanners that need
- * to enumerate numeric tokens without losing source positions.
+ * Strip a $RECORD prefix, an optional `BLOCK(n)` / `DIAGONAL(n)` prefix,
+ * and any trailing comment — returning the value-content and the absolute
+ * char offset of that content in the original line. Used by parameter
+ * scanners that need to enumerate numeric tokens without losing source
+ * positions.
  */
 export function stripParameterPrefix(line: string): { content: string; offset: number } {
   let offset = 0;
@@ -70,10 +71,10 @@ export function stripParameterPrefix(line: string): { content: string; offset: n
     offset += recordMatch[0].length;
     content = content.substring(recordMatch[0].length);
   }
-  const blockMatch = content.match(/^BLOCK\(\d+\)\s*/i);
-  if (blockMatch) {
-    offset += blockMatch[0].length;
-    content = content.substring(blockMatch[0].length);
+  const matrixMatch = content.match(/^(?:BLOCK|DIAGONAL)\(\d+\)\s*/i);
+  if (matrixMatch) {
+    offset += matrixMatch[0].length;
+    content = content.substring(matrixMatch[0].length);
   }
   content = stripComment(content);
   return { content, offset };

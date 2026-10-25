@@ -7,6 +7,11 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- `$OMEGA DIAGONAL(n)` and `$SIGMA DIAGONAL(n)` no longer count `n` as a
+  parameter value, preventing phantom ETA/EPS declarations.
+
 ## [0.5.0] - 2026-05-14
 
 ### Changed (breaking)

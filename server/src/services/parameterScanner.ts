@@ -326,7 +326,7 @@ function parseThetaExpressions(line: string): Array<{
 /**
  * Locate every parameter value on a non-block OMEGA/SIGMA line, in order.
  * SAME yields a single position (the SAME keyword); otherwise every numeric
- * token after the $RECORD + BLOCK(n) prefix is returned.
+ * token after the $RECORD + BLOCK(n) / DIAGONAL(n) prefix is returned.
  *
  * Absolute character offsets relative to the original `line`.
  */

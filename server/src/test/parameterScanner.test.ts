@@ -98,6 +98,30 @@ describe('ParameterScanner BLOCK Matrix Tests', () => {
     expect(slice(etas[2]!)).toBe('0.3');
   });
 
+  test('DIAGONAL size is not counted as an ETA value after a BLOCK', () => {
+    const content = `$PK
+CL = EXP(ETA(1))
+V1 = EXP(ETA(2))
+V2 = EXP(ETA(3))
+K30 = EXP(ETA(4))
+FM = EXP(ETA(5))
+$OMEGA BLOCK(2)
+0.165
+0.139 0.268
+$OMEGA DIAGONAL(3)
+0.0916
+0.03
+0.10`;
+    const document = TextDocument.create('test://diagonal-after-block.mod', 'nmtran', 1, content);
+
+    const locations = ParameterScanner.scanDocument(document);
+    const etas = locations.filter(loc => loc.type === 'ETA');
+    expect(etas.map(eta => eta.index)).toEqual([1, 2, 3, 4, 5]);
+
+    const result = validateParameterReferences(document);
+    expect(result.errors.some(error => error.message.includes('ETA(6)'))).toBe(false);
+  });
+
   test('should handle complex THETA line with FIXED keywords', () => {
     const content = `$THETA  (0,3) 2 FIXED (0,.6,1) 10 (-INF,-2.7,0) (37 FIXED) 4 FIX`;
     const document = TextDocument.create('test://test.mod', 'nmtran', 1, content);
